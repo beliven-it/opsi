@@ -24,11 +24,13 @@ and check if the machine need to reboot
 			os.Exit(1)
 		}
 
-		_, err = hosts.CheckReboot(content)
+		output, err := hosts.CheckReboot(content)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
+
+		fmt.Println(string(output))
 	},
 }
 
