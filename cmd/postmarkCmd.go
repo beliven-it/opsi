@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -13,13 +12,12 @@ import (
 // postmarkCmd represents the postmark command
 var postmarkCmd = &cobra.Command{
 	Use:   "postmark",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "The postmark commands",
+	Long: `You must provide a valid verb.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	- list to list a specified entity.
+	- create to perform the creation for the entity specified.
+	- edit to perform the execution for update the entity specified`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("postmark called")
 	},
