@@ -4,11 +4,14 @@
 
 The aim of this tool is to group all the daily and most used commands for OPS activities into a single tool. 
 
+<br>
+
 This tool interact with some entities:
 
 - `Gitlab` for create, setup the repos.
 - `1Password` for create groups and templates.
 - `Postmark` for interact with the servers linked.
+- `Hosts`for interact with ours hosts
 
 <br><br><br><br><br><br>
 
@@ -56,7 +59,7 @@ Below the list of available commands.
 
 ### Gitlab
 
-There are this commands:
+There are these commands:
 
 <br>
 
@@ -102,7 +105,7 @@ There are this commands:
 
 ### 1Password
 
-There are this commands:
+There are these commands:
 
 <br>
 
@@ -114,7 +117,7 @@ There are this commands:
 
 ### Postmark
 
-There are this commands:
+There are these commands:
 
 <br>
 
@@ -135,6 +138,22 @@ The output follow this schema:
 [2022-02-12] Server-test-02 (123457)
 ...
 ```
+
+<br><br><br><br><br><br>
+
+### Hosts
+
+There are these commands:
+
+<br>
+
+`opsi hosts check-reboot`
+
+> This command show a list of servers needed to reboot.
+>
+> This command make use of `hssh`. You can find the tool and the istructions to install [here](https://github.com/beliven-it/hssh).
+
+<br>
 
 
 
