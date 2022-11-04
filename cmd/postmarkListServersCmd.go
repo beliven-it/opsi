@@ -29,5 +29,5 @@ var postmarkListServersCmd = &cobra.Command{
 }
 
 func init() {
-	postmarkCmd.AddCommand(postmarkListServersCmd)
+	postmarkListCmd.AddCommand(postmarkListServersCmd)
 }

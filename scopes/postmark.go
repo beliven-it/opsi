@@ -38,8 +38,11 @@ func (p *Postmark) request(method string, endpoint string, body []byte, queryMap
 func (p *Postmark) EditServer(serverID int) error {
 	endpoint := fmt.Sprintf("/servers/%d", serverID)
 
+	// Get payload
+	payload := p.getGeneralPayload()
+
 	// Create the POST request payload
-	payloadAsBytes, err := json.Marshal(p.getGeneralPayload())
+	payloadAsBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
@@ -121,6 +124,7 @@ func (p *Postmark) GetServers() ([]postmarkServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return serverResponse.Servers, nil
 }
 

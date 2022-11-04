@@ -7,18 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
 
 // serversCmd represents the servers command
-var postmarkCreateServerCmd = &cobra.Command{
+var postmarkEditServerCmd = &cobra.Command{
 	Use:   "server",
-	Short: "Create a postmark server",
-	Long:  `Create a postmark server`,
+	Short: "Edit a postmark server",
+	Long:  `Edit a postmark server`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("missing name argument")
+			return errors.New("missing ID argument")
 		}
 
 		return nil
@@ -29,15 +30,16 @@ var postmarkCreateServerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		name := args[0]
-		color, _ := cmd.Flags().GetString("color")
+		idAsNumber, err := strconv.Atoi(args[0])
+		if err != nil {
+			fmt.Println("Invalid ID type. Integer expected")
+			os.Exit(1)
+		}
 
-		postmark.CreateServer(name, color)
+		postmark.EditServer(idAsNumber)
 	},
 }
 
 func init() {
-	postmarkCreateCmd.AddCommand(postmarkCreateServerCmd)
-
-	postmarkCreateServerCmd.Flags().StringP("color", "c", "blue", "The color settings for the server")
+	postmarkEditCmd.AddCommand(postmarkEditServerCmd)
 }

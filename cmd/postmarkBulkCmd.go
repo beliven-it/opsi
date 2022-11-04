@@ -9,11 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// serversCmd represents the servers command
-var postmarkEditCmd = &cobra.Command{
-	Use:   "edit",
-	Short: "Edit a postmark server",
-	Long:  `Edit a postmark server`,
+var postmarkBulkCmd = &cobra.Command{
+	Use:   "bulk",
+	Short: "Allow to perform a bulk action on entity",
+	Long: `You can perform the action in one of the following entities:
+
+- servers
+	`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("missing entity argument")
@@ -25,5 +27,5 @@ var postmarkEditCmd = &cobra.Command{
 }
 
 func init() {
-	postmarkCmd.AddCommand(postmarkEditCmd)
+	postmarkCmd.AddCommand(postmarkBulkCmd)
 }
