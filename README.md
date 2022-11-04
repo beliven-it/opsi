@@ -50,12 +50,13 @@ Some notes about these settings:
 - `ONEPASSWORD_ADDRESS` the 1password address of your tenant. Like: `my-tenant.1password.com`
 
 <br><br><br><br><br><br>
+<br><br><br><br><br><br>
 
 ## Commands
 
 Below the list of available commands.
 
-<br><br><br><br><br><br>
+<br><br><br>
 
 ### Gitlab
 
@@ -78,7 +79,11 @@ There are these commands:
 - `s[subgroup]` !!**Required**!! for provide a subgroup for the project. 
 - `p[path]` for provide a custom slugify version of the name. Ex. `my-slug`. If not provided the system slugify the argument automatically.
 
-<br><br>
+<br>
+
+---
+
+<br>
 
 `opsi gitlab create subgroup <SUBGROUP_NAME> -s <PARENT_ID> -p <PATH_NAME>`
 
@@ -89,13 +94,21 @@ There are these commands:
 - `s[parent]` for provide a parent of the subgroup. Otherwise it will take this value from `.ospi.yml` file.
 - `p[path]` for provide a custom slugify version of the name. Ex. `my-slug`. If not provided the system slugify the argument automatically.
 
-<br><br>
+<br>
+
+---
+
+<br>
 
 `opsi gitlab bulk settings`
 
 > This command is a bulk massive fix for old repos's branches with the actual standards.
 
-<br><br>
+<br>
+
+---
+
+<br>
 
 `opsi gitlab deprovisioning <USERNAME>`
 
@@ -139,7 +152,11 @@ The output follow this schema:
 ...
 ```
 
-<br><br>
+<br>
+
+---
+
+<br>
 
 `opsi postmark create server <SERVER_NAME> -c <COLOR>`
 
@@ -151,7 +168,11 @@ The output follow this schema:
 
 - `c[color]` for provide a color to assign to server. The default color is `blue` if not provided.
 
-<br><br>
+<br>
+
+---
+
+<br>
 
 `opsi postmark edit server <SERVER_ID>`
 
@@ -159,7 +180,11 @@ The output follow this schema:
 >
 > The edit action just update the Slack webhook provided in the configuration.
 
-<br><br>
+<br>
+
+---
+
+<br>
 
 `opsi postmark bulk servers`
 
