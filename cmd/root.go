@@ -7,6 +7,7 @@ import (
 	"embed"
 	"fmt"
 	"opsi/config"
+	"opsi/helpers"
 	"opsi/scopes"
 	"os"
 
@@ -22,6 +23,8 @@ var onepassword scopes.OnePassword
 var hosts scopes.Hosts
 
 var Scripts embed.FS
+
+var ConfigTemplate embed.FS
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -58,7 +61,16 @@ func initConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println("Can't read config:", err)
-		os.Exit(1)
+		// Initialize and exit
+		err = helpers.ConfigInit(ConfigTemplate)
+		if err != nil {
+			fmt.Println("Cannot Initialize config")
+			os.Exit(1)
+		}
+
+		fmt.Println("Config create successfully")
+
+		os.Exit(0)
 	}
 
 	if err := viper.Unmarshal(&mainConfig); err != nil {

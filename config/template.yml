@@ -1,0 +1,10 @@
+gitlab:
+  api_url: "https://gitlab.com/api/v4"
+  token: "<GITLAB_TOKEN>"
+  group_id: <GROUP_ID>
+postmark:
+  api_url: "https://api.postmarkapp.com"
+  token: <POSTMARK_TOKEN>
+  slack_webhook: "<POSTMARK_SLACK_WEBHOOK>"
+onepassword:
+  address: "<ONEPASSWORD_ADDRESS>"

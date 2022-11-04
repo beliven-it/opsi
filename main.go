@@ -11,8 +11,12 @@ import (
 //go:embed scripts/*
 var scripts embed.FS
 
+//go:embed config/template.yml
+var configTemplate embed.FS
+
 func main() {
 	cmd.Scripts = scripts
+	cmd.ConfigTemplate = configTemplate
 
 	cmd.Execute()
 }
