@@ -129,15 +129,44 @@ There are these commands:
 
 The output follow this schema:
 
-`[<TIMESTAMP>] <SERVER_NAME> (<SERVER_ID>)`
+`[<INDEX>] <SERVER_NAME> (<SERVER_ID>)`
 
 **Output**
 
 ```bash
-[2022-02-12] Server-test (123456)
-[2022-02-12] Server-test-02 (123457)
+[0] Server-test (123456)
+[1] Server-test-02 (123457)
 ...
 ```
+
+<br><br>
+
+`opsi postmark create server <SERVER_NAME> -c <COLOR>`
+
+> This command create a new server in postmark.
+
+<br>
+
+**Flags**
+
+- `c[color]` for provide a color to assign to server. The default color is `blue` if not provided.
+
+<br><br>
+
+`opsi postmark edit server <SERVER_ID>`
+
+> This command edit a new server in postmark.
+>
+> The edit action just update the Slack webhook provided in the configuration.
+
+<br><br>
+
+`opsi postmark bulk servers`
+
+> This command edit all servers in postmark.
+>
+> The edit action just update the Slack webhook provided in the configuration.
+
 
 <br><br><br><br><br><br>
 
