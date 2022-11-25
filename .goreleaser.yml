@@ -1,0 +1,34 @@
+builds:
+  -
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser -X opsi/cmd.Version={{.Tag}}
+
+brews:
+  -
+    name: opsi@{{.Version}}
+    tap:
+      owner: beliven-it
+      name: homebrew-tap
+    folder: Formula
+    caveats: "Run `opsi init` to generate config file inside\n
+      `~/.config/opsi/config.yml` (works only if not exists yet).\n
+      \n
+      Type `opsi help` for further information."
+    description: "All-in-one CLI for Beliven Ops daily usage!"
+    license: "MIT"
+    dependencies:
+      - name: fzf
+  -
+    name: opsi
+    tap:
+      owner: beliven-it
+      name: homebrew-tap
+    folder: Formula
+    caveats: "Run `opsi init` to generate config file inside\n
+      `~/.config/opsi/config.yml` (works only if not exists yet).\n
+      \n
+      Type `opsi help` for further information."
+    description: "All-in-one CLI for Beliven Ops daily usage!"
+    license: "MIT"
+    dependencies:
+      - name: fzf

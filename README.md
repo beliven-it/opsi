@@ -1,14 +1,14 @@
 # OPSI
 
-> A all-in-one CLI for daily usage!!
+> All-in-one CLI for Beliven Ops daily usage!
 
-The aim of this tool is to group all the daily and most used commands for OPS activities into a single tool. 
+The aim of this tool is to group all the daily and most used commands for OPS activities into a single tool.
 
 <br>
 
 This tool interact with some entities:
 
-- `Gitlab` for create, setup the repos.
+- `GitLab` for create, setup the repos.
 - `1Password` for create groups and templates.
 - `Postmark` for interact with the servers linked.
 - `Hosts`for interact with ours hosts
@@ -76,7 +76,7 @@ There are these commands:
 
 **Flags**
 
-- `s[subgroup]` !!**Required**!! for provide a subgroup for the project. 
+- `s[subgroup]` !!**Required**!! for provide a subgroup for the project.
 - `p[path]` for provide a custom slugify version of the name. Ex. `my-slug`. If not provided the system slugify the argument automatically.
 
 <br>
