@@ -1,7 +1,7 @@
 gitlab:
   api_url: "https://gitlab.com/api/v4"
   token: "<GITLAB_TOKEN>"
-  group_id: <GROUP_ID>
+  group_id: -1
 postmark:
   api_url: "https://api.postmarkapp.com"
   token: <POSTMARK_TOKEN>
