@@ -2,7 +2,9 @@ package helpers
 
 import (
 	"embed"
+	"fmt"
 	"os"
+	"path/filepath"
 )
 
 func ConfigInit(template embed.FS) error {
@@ -16,22 +18,24 @@ func ConfigInit(template embed.FS) error {
 		return err
 	}
 
-	configTargetPath := userHomeDir + "/.opsi.yml"
+	configTargetPath := userHomeDir + "/.config/opsi/config.yml"
 
-	_, err = os.Stat(configTargetPath)
+	err = os.MkdirAll(filepath.Dir(configTargetPath), 0755)
 	if err != nil {
-		if os.IsNotExist(err) {
-			file, err := os.Create(configTargetPath)
-			if err != nil {
-				return err
-			}
-
-			_, err = file.Write(content)
-			if err != nil {
-				return err
-			}
-		}
+		return err
 	}
 
-	return nil
+	_, err = os.Stat(configTargetPath)
+	if err == nil {
+		return nil
+	} else if os.IsNotExist(err) {
+		err := os.WriteFile(configTargetPath, content, 0755)
+		if err != nil {
+			return err
+		}
+		return nil
+	} else {
+		fmt.Println("AAA", err.Error())
+		return err
+	}
 }
