@@ -52,20 +52,20 @@ func initConfig() {
 	}
 
 	// Search config in home directory with name ".cobra" (without extension).
-	viper.AddConfigPath(home)
-	viper.SetConfigName(".opsi")
+	viper.AddConfigPath(home + "/.config/opsi/")
+	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
 
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Can't read config:", err)
-		// Initialize and exit
-		err = helpers.ConfigInit(ConfigTemplate)
+	// Read config
+	err = viper.ReadInConfig()
+	if err != nil {
+		err := helpers.ConfigInit(ConfigTemplate)
 		if err != nil {
-			fmt.Println("Cannot Initialize config")
+			fmt.Println("Cannot Initialize configuration file")
 			os.Exit(1)
 		}
 
-		fmt.Println("Config create successfully")
+		fmt.Println("Configuration file created successfully! Please relaunch now the command")
 
 		os.Exit(0)
 	}
