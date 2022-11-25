@@ -17,18 +17,11 @@ This tool interact with some entities:
 
 ## Configuration
 
-You must start by creating the configuration file for opsi:
+Opsi automatically create the configuration file if not exist
+in the system in `~/.config/opsi/config.yml`
 
-```bash
-# Go to home
-cd
 
-# Create the configuration file
-touch .opsi.yml
-
-```
-
-Then copy inside the file the following configuration schema:
+The configuration file follow this schema:
 
 ```yml
 gitlab:
