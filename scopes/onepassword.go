@@ -1,6 +1,8 @@
 package scopes
 
-import "opsi/helpers"
+import (
+	"opsi/helpers"
+)
 
 type OnePassword struct {
 	address string
