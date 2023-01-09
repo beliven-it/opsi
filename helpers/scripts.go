@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"os/exec"
 )
@@ -20,6 +22,16 @@ func ExecuteScript(content []byte, args ...string) ([]byte, error) {
 	}
 
 	os.Chmod(file.Name(), 0711)
-	return exec.Command(file.Name(), args...).Output()
+
+	cmd := exec.Command(file.Name(), args...)
+
+	var stdout, stderr bytes.Buffer
+
+	err = cmd.Run()
+	if err != nil {
+		return nil, errors.New(stderr.String())
+	}
+
+	return stdout.Bytes(), nil
 
 }
