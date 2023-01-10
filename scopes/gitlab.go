@@ -289,6 +289,45 @@ func (g *Gitlab) CreateEnvs(projectID string, env string, envPath string) error 
 	return nil
 }
 
+func (g *Gitlab) ListEnvs(projectID string, env string) error {
+	variables, err := g.listVariables(projectID, env)
+	if err != nil {
+		return err
+	}
+
+	if len(variables) == 0 {
+		fmt.Println("No variables to delete")
+		return nil
+	}
+
+	// Group env by environment
+	var groupedVariables = map[string][]gitlabProjectListVariable{}
+	var maxKeyLength = 0
+	for _, variable := range variables {
+		_, ok := groupedVariables[variable.EnvironmentScope]
+		if !ok {
+			groupedVariables[variable.EnvironmentScope] = []gitlabProjectListVariable{}
+		}
+
+		if len(variable.Key) > maxKeyLength {
+			maxKeyLength = len(variable.Key) + 1
+		}
+
+		groupedVariables[variable.EnvironmentScope] = append(groupedVariables[variable.EnvironmentScope], variable)
+	}
+
+	for key, variables := range groupedVariables {
+		fmt.Printf("\n# [%s]\n", key)
+		for _, variable := range variables {
+			keySpacer := make([]string, maxKeyLength-len(variable.Key))
+
+			fmt.Printf("%s%s = %s\n", variable.Key, strings.Join(keySpacer, " "), variable.Value)
+		}
+	}
+
+	return nil
+}
+
 func (g *Gitlab) DeleteEnvs(projectID string, env string, force bool) error {
 	variables, err := g.listVariables(projectID, env)
 	if err != nil {
