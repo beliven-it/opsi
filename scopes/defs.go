@@ -62,6 +62,16 @@ type gitlabProjectResponse struct {
 	ID int `json:"id"`
 }
 
+type gitlabProjectListVariable struct {
+	VariableType     string `json:"variable_type"`
+	Key              string `json:"key"`
+	Value            string `json:"value"`
+	Protected        bool   `json:"protected"`
+	Masked           bool   `json:"masked"`
+	Raw              bool   `json:"raw"`
+	EnvironmentScope string `json:"environment_scope"`
+}
+
 type gitlabEntityWithID struct {
 	ID int `json:"id"`
 }
@@ -79,4 +89,13 @@ type gitlabSetupBranchRequest struct {
 
 type gitlabUser struct {
 	ID int `json:"id"`
+}
+
+type gitlabEnvRequest struct {
+	VariableType     string `json:"variable_type"`
+	Key              string `json:"key"`
+	Value            string `json:"value"`
+	EnvironmentScope string `json:"environment_scope"`
+	Masked           bool   `json:"masked"`
+	Protected        bool   `json:"protected"`
 }
