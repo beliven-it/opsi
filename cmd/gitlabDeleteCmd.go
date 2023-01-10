@@ -7,13 +7,11 @@ import (
 )
 
 // gitlabCmd represents the gitlab command
-var gitlabCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Allow to create a specific entity",
-	Long: `You can create one of the following entities:
+var gitlabDeleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Allow to delete a specific entity",
+	Long: `You can delete one of the following entities:
 
-- projects
-- subgroups
 - envs
 	`,
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -27,5 +25,5 @@ var gitlabCreateCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabCmd.AddCommand(gitlabCreateCmd)
+	gitlabCmd.AddCommand(gitlabDeleteCmd)
 }

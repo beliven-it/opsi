@@ -100,6 +100,43 @@ There are these commands:
 
 <br>
 
+`opsi gitlab create env <PROJECT_ID> <ENV_PATH> -e <ENV_NAME>`
+
+> This command create environments variables for the specific project.
+
+**Args**
+
+- `<PROJECT_ID>` The ID of the project.
+- `<ENV_PATH>` The path of the env file to upload.
+
+**Flags**
+
+- `e[env]` the env file. For example `staging`, `production`. If not provided it use the "*" value
+
+<br>
+
+---
+
+<br>
+
+`opsi gitlab delete env <PROJECT_ID> -e <ENV_NAME>`
+
+> This command delete environments variables for the specific project.
+
+**Args**
+
+- `<PROJECT_ID>` The ID of the project.
+
+**Flags**
+
+- `e[env]` the env file. For example `staging`, `production`. If not provided it use the "*" value
+
+<br>
+
+---
+
+<br>
+
 `opsi gitlab bulk settings`
 
 > This command is a bulk massive fix for old repos's branches with the actual standards.

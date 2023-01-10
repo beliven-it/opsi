@@ -1,11 +1,15 @@
 package scopes
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"opsi/helpers"
+	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -20,6 +24,33 @@ func (g *Gitlab) request(method string, endpoint string, body []byte, queryMap m
 		"Content-Type":  "application/json",
 		"PRIVATE-TOKEN": g.token,
 	})
+}
+
+func (g *Gitlab) listVariables(projectID string, env string) ([]gitlabProjectListVariable, error) {
+	response, err := g.request("GET", fmt.Sprintf("/projects/%s/variables", projectID), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var listOfVariables []gitlabProjectListVariable
+
+	err = json.Unmarshal(response, &listOfVariables)
+	if err != nil {
+		return nil, err
+	}
+
+	if env == "all" || env == "*" {
+		return listOfVariables, nil
+	}
+
+	listOfVariablesFiltered := []gitlabProjectListVariable{}
+	for _, variable := range listOfVariables {
+		if variable.EnvironmentScope == env {
+			listOfVariablesFiltered = append(listOfVariablesFiltered, variable)
+		}
+	}
+
+	return listOfVariablesFiltered, nil
 }
 
 func (g *Gitlab) walkThroughProjects(projects []gitlabEntityWithID, page int) []gitlabEntityWithID {
@@ -71,7 +102,6 @@ func (g *Gitlab) walkThroughGroups(groups []gitlabEntityWithID, page int) []gitl
 
 		return g.walkThroughGroups(groups, page+1)
 	}
-
 }
 
 func (g *Gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) error {
@@ -83,45 +113,6 @@ func (g *Gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) err
 		"name":               branch.Name,
 		"push_access_level":  strconv.Itoa(branch.PushAccessLevel),
 		"merge_access_level": strconv.Itoa(branch.MergeAccessLevel),
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (g *Gitlab) setupMaster(projectID int) error {
-	g.request("DELETE", fmt.Sprintf("/projects/%d/protected_branches/master", projectID), nil, nil)
-	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
-		"name":               "master",
-		"push_access_level":  "0",
-		"merge_access_level": "40",
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (g *Gitlab) setupStaging(projectID int) error {
-	g.request("DELETE", fmt.Sprintf("/projects/%d/protected_branches/staging", projectID), nil, nil)
-	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
-		"name":               "staging",
-		"push_access_level":  "0",
-		"merge_access_level": "30",
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (g *Gitlab) setupDevelop(projectID int) error {
-	g.request("DELETE", fmt.Sprintf("/projects/%d/protected_branches/develop", projectID), nil, nil)
-	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
-		"name":               "develop",
-		"push_access_level":  "30",
-		"merge_access_level": "30",
 	})
 	if err != nil {
 		return err
@@ -244,7 +235,142 @@ func (g *Gitlab) CreateProject(name string, path string, subgroupID int) error {
 	return nil
 }
 
-// {"analytics_access_level":"disabled","security_and_compliance_enabled":false,"service_desk_enabled":false,"issues_enabled":false,"forking_access_level":"disabled","lfs_enabled":false,"wiki_enabled":false,"pages_access_level":"disabled","operations_access_level":"disabled","ci_forward_deployment_enabled":false,"shared_runners_enabled":false,"squash_option":"never"}
+func (g *Gitlab) CreateEnvs(projectID string, env string, envPath string) error {
+	// Read file env provided
+	envFile, err := os.Open(envPath)
+	if err != nil {
+		return err
+	}
+
+	defer envFile.Close()
+
+	scanner := bufio.NewScanner(envFile)
+	scanner.Split(bufio.ScanLines)
+
+	maskedRgx := regexp.MustCompile(`MASKED_`)
+	unprotectedRgx := regexp.MustCompile(`NOPROTECTED_`)
+
+	for scanner.Scan() {
+		text := scanner.Text()
+		partials := strings.Split(text, "=")
+		if len(partials) < 2 {
+			continue
+		} else if len(partials) > 2 {
+			partials[1] = strings.Join(partials[1:], "=")
+		}
+
+		key := partials[0]
+		value := partials[1]
+
+		isMasked := maskedRgx.MatchString(key)
+		isUnProtected := unprotectedRgx.MatchString(key)
+
+		// Remove prefixes if any
+		key = maskedRgx.ReplaceAllString(key, "")
+		key = unprotectedRgx.ReplaceAllString(key, "")
+
+		payload := gitlabEnvRequest{
+			VariableType:     "env_var",
+			Key:              key,
+			Value:            value,
+			Masked:           isMasked,
+			Protected:        !isUnProtected,
+			EnvironmentScope: env,
+		}
+
+		payloadAsBytes, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+
+		g.request("POST", fmt.Sprintf("/projects/%s/variables", projectID), payloadAsBytes, nil)
+	}
+
+	return nil
+}
+
+func (g *Gitlab) DeleteEnvs(projectID string, env string, force bool) error {
+	variables, err := g.listVariables(projectID, env)
+	if err != nil {
+		return err
+	}
+
+	if !force {
+		if len(variables) == 0 {
+			fmt.Println("No variables to delete")
+			return nil
+		}
+
+		for _, variable := range variables {
+			fmt.Printf("- %s [%s]\n", variable.Key, variable.EnvironmentScope)
+		}
+
+		rgx := regexp.MustCompile(`\n`)
+
+		fmt.Println("The following variables will be deleted. Are you sure? (y/n)")
+		reader := bufio.NewReader(os.Stdin)
+		value, _ := reader.ReadString('\n')
+		value = rgx.ReplaceAllString(value, "")
+		if value != "y" {
+			fmt.Println("Ok, abort procedure")
+			return nil
+		}
+	}
+
+	for _, variable := range variables {
+		queryParams := map[string]string{}
+		queryParams["filter[environment_scope]"] = variable.EnvironmentScope
+
+		_, err = g.request("DELETE", fmt.Sprintf("/projects/%s/variables/%s", projectID, variable.Key), nil, queryParams)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Create subgroup
+func (g *Gitlab) CreateSubgroup(name string, path string, group int) error {
+	// Check if name and path
+	// are property set
+	if name == "" || path == "" {
+		return errors.New("missing name or path arguments")
+	}
+
+	// Create the POST request payload
+	payload := gitlabSubgroupRequest{
+		Name:                  name,
+		Path:                  path,
+		ParentID:              group,
+		Visibility:            "private",
+		ProjectCreationLevel:  "maintainer",
+		SubgroupCreationLevel: "owner",
+		RequestAccessEnabled:  false,
+	}
+
+	payloadAsBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	// Execute the request
+	bodyResponse, err := g.request("POST", "/groups", payloadAsBytes, nil)
+	if err != nil {
+		return err
+	}
+
+	var subgroup gitlabSubgroupResponse
+	err = json.Unmarshal(bodyResponse, &subgroup)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("The subgroup ID is:", subgroup.ID)
+
+	return nil
+}
+
 func (g *Gitlab) BulkSettings() error {
 	projects := g.walkThroughProjects([]gitlabEntityWithID{}, 0)
 	wg := sync.WaitGroup{}
@@ -375,47 +501,6 @@ func (g *Gitlab) BulkSettings() error {
 	}
 
 	wg.Wait()
-	return nil
-}
-
-// Create subgroup
-func (g *Gitlab) CreateSubgroup(name string, path string, group int) error {
-	// Check if name and path
-	// are property set
-	if name == "" || path == "" {
-		return errors.New("missing name or path arguments")
-	}
-
-	// Create the POST request payload
-	payload := gitlabSubgroupRequest{
-		Name:                  name,
-		Path:                  path,
-		ParentID:              group,
-		Visibility:            "private",
-		ProjectCreationLevel:  "maintainer",
-		SubgroupCreationLevel: "owner",
-		RequestAccessEnabled:  false,
-	}
-
-	payloadAsBytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	// Execute the request
-	bodyResponse, err := g.request("POST", "/groups", payloadAsBytes, nil)
-	if err != nil {
-		return err
-	}
-
-	var subgroup gitlabSubgroupResponse
-	err = json.Unmarshal(bodyResponse, &subgroup)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("The subgroup ID is:", subgroup.ID)
-
 	return nil
 }
 
