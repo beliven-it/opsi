@@ -126,6 +126,17 @@ There are these commands:
 
 > This command generate `private` and `public` VAULTS by project name
 
+<br>
+
+---
+
+<br>
+
+`opsi 1password deprovisioning <USER_EMAIL>`
+
+> This command remove a specific user by email. If `USER_EMAIL` is not 
+> provided, the command remove all users marked as inactive.
+
 <br><br><br><br><br><br>
 
 ### Postmark
