@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/mozillazg/go-slugify v0.2.0
-	github.com/spf13/cobra v1.6.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
 )
 
