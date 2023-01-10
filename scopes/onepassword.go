@@ -42,7 +42,7 @@ type OnePasswordGroup struct {
 type OnePasswordVault struct {
 	ID             string `json:"id"`
 	Name           string `json:"name"`
-	ContentVersion string `json:"content_version"`
+	ContentVersion int `json:"content_version"`
 }
 
 var privilegedPermissions = []string{
@@ -207,7 +207,7 @@ func (o *OnePassword) revokeUserFromGroup(groupName string) error {
 
 func (o *OnePassword) revokeUserFromVault(vaultName string) error {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("op", "vault", "user", "revoke", "--user", o.account.UserUUID, "--group", vaultName)
+	cmd := exec.Command("op", "vault", "user", "revoke", "--user", o.account.UserUUID, "--vault", vaultName)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -240,12 +240,6 @@ func (o *OnePassword) addVault(vaultName string) error {
 		return err
 	}
 
-	// Revoke user from created group
-	err = o.revokeUserFromVault(vaultName)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -271,30 +265,21 @@ func (o *OnePassword) addGroup(groupName string) error {
 		return err
 	}
 
-	// Revoke user from created group
-	err = o.revokeUserFromGroup(groupName)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (o *OnePassword) createContainer(projectName string, permissions []string) error {
-	// Create the primary group
 	err := o.addGroup(projectName)
 	if err != nil {
 		return err
 	}
 
-	// Create the primary vault
 	err = o.addVault(projectName)
 	if err != nil {
 		return err
 	}
 
-	// Grant vault permissions
-	err = o.grantPermissions(projectName, "Owner", privilegedPermissions)
+	err = o.grantPermissions(projectName, "Owners", privilegedPermissions)
 	if err != nil {
 		return err
 	}
@@ -308,6 +293,16 @@ func (o *OnePassword) createContainer(projectName string, permissions []string) 
 	if err != nil {
 		return err
 	}
+
+    err = o.revokeUserFromGroup(projectName)
+    if err != nil {
+        return err
+    }
+
+    err = o.revokeUserFromVault(projectName)
+    if err != nil {
+        return err
+    }
 
 	return nil
 }
@@ -362,7 +357,7 @@ func (o *OnePassword) Create(projectName string) error {
 	}
 
 	// Grant permissions
-	err = o.grantPermissions(pubName, priName, privilegedPermissions)
+	err = o.grantPermissions(pubName, priName, unprivilegedPriPermissions)
 	if err != nil {
 		return err
 	}
