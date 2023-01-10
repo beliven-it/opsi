@@ -1,6 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -27,13 +24,7 @@ var onepasswordCreateCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		content, err := Scripts.ReadFile("scripts/1password/create.bash")
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-
-		_, err = onepassword.Create(content, args[0])
+		err := onepassword.Create(args[0])
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)

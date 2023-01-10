@@ -1,6 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -28,7 +25,6 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 		name := args[0]
 		parent, _ := cmd.Flags().GetInt("parent")
 		pathname, _ := cmd.Flags().GetString("path")
