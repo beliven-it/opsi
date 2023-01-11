@@ -51,22 +51,26 @@ func initConfig() {
 		os.Exit(1)
 	}
 
+	var configFolder = "/.config/opsi/"
+	var configName = "config"
+
+	helpers.ConfigInit(ConfigTemplate, "/.config/opsi/config.yml")
+
+	// Check if the user just use exist
+	if _, err := os.Stat(home + "/.opsi.yml"); err == nil {
+		configFolder = ""
+		configName = ".opsi"
+	}
+
 	// Search config in home directory with name ".cobra" (without extension).
-	viper.AddConfigPath(home + "/.config/opsi/")
-	viper.SetConfigName("config")
+	viper.AddConfigPath(home + configFolder)
+	viper.SetConfigName(configName)
 	viper.SetConfigType("yml")
 
 	// Read config
 	err = viper.ReadInConfig()
 	if err != nil {
-		err := helpers.ConfigInit(ConfigTemplate)
-		if err != nil {
-			fmt.Println("Cannot Initialize configuration file")
-			os.Exit(1)
-		}
-
-		fmt.Println("Configuration file created successfully! Please relaunch now the command")
-
+		fmt.Println("Config file error", err.Error())
 		os.Exit(0)
 	}
 
