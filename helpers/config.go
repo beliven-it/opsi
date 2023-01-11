@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-func ConfigInit(template embed.FS) error {
+func ConfigInit(template embed.FS, path string) error {
 	content, err := template.ReadFile("config/template.yml")
 	if err != nil {
 		return err
@@ -18,7 +18,7 @@ func ConfigInit(template embed.FS) error {
 		return err
 	}
 
-	configTargetPath := userHomeDir + "/.config/opsi/config.yml"
+	configTargetPath := userHomeDir + path
 
 	err = os.MkdirAll(filepath.Dir(configTargetPath), 0755)
 	if err != nil {
