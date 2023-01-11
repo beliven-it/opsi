@@ -15,19 +15,12 @@ var hostsCheckRebootCmd = &cobra.Command{
 and check if the machine need to reboot
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		content, err := Scripts.ReadFile("scripts/hosts/check-reboot.bash")
+		err := hosts.CheckReboot()
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 
-		output, err := hosts.CheckReboot(content)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-
-		fmt.Println(string(output))
 	},
 }
 

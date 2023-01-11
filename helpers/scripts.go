@@ -3,7 +3,6 @@ package helpers
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 )
@@ -33,11 +32,6 @@ func ExecuteScript(content []byte, args ...string) ([]byte, error) {
 
 	err = cmd.Run()
 	if err != nil {
-		fmt.Println(stderr.String())
-		fmt.Println(stdout.String())
-
-		fmt.Println(err)
-
 		return nil, errors.New(stdout.String())
 	}
 	return stdout.Bytes(), nil

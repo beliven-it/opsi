@@ -99,3 +99,11 @@ type gitlabEnvRequest struct {
 	Masked           bool   `json:"masked"`
 	Protected        bool   `json:"protected"`
 }
+
+type hostHSSH struct {
+	Name     string
+	Hostname string
+	User     string
+	Port     int
+	Identity string
+}
