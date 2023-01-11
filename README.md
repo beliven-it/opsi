@@ -93,7 +93,7 @@ There are these commands:
 
 <br>
 
-`opsi gitlab create env <PROJECT_ID> <ENV_PATH> -e <ENV_NAME>`
+`opsi gitlab create envs <PROJECT_ID> <ENV_PATH> -e <ENV_NAME>`
 
 > This command create environments variables for the specific project.
 
@@ -112,7 +112,7 @@ There are these commands:
 
 <br>
 
-`opsi gitlab delete env <PROJECT_ID> -e <ENV_NAME>`
+`opsi gitlab delete envs <PROJECT_ID> -e <ENV_NAME>`
 
 > This command delete environments variables for the specific project.
 
@@ -130,7 +130,7 @@ There are these commands:
 
 <br>
 
-`opsi gitlab list env <PROJECT_ID> -e <ENV_NAME>`
+`opsi gitlab list envs <PROJECT_ID> -e <ENV_NAME>`
 
 > This command list environments variables for the specific project.
 
@@ -262,7 +262,7 @@ There are these commands:
 
 `opsi hosts check-reboot`
 
-> This command show a list of servers needed to reboot.
+> This command show a overview of the servers, showing which reboot, which give you error connections, ecc.
 >
 > This command make use of `hssh`. You can find the tool and the istructions to install [here](https://github.com/beliven-it/hssh).
 
