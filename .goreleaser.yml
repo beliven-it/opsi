@@ -16,11 +16,6 @@ brews:
       Type `opsi help` for further information."
     description: "All-in-one CLI for Beliven Ops daily usage!"
     license: "MIT"
-    dependencies:
-      - name: 1password/tap/1password-cli
-        version: 2.12.0
-      - name: beliven-it/tap/hssh
-        version: 1.2.2
   -
     name: opsi
     tap:
@@ -33,8 +28,3 @@ brews:
       Type `opsi help` for further information."
     description: "All-in-one CLI for Beliven Ops daily usage!"
     license: "MIT"
-    dependencies:
-      - name: 1password/tap/1password-cli
-        version: 2.12.0
-      - name: beliven-it/tap/hssh
-        version: 1.2.2
