@@ -17,7 +17,10 @@ brews:
     description: "All-in-one CLI for Beliven Ops daily usage!"
     license: "MIT"
     dependencies:
-      - name: fzf
+      - name: 1password-cli
+        version: 2.12.0
+      - name: hssh
+        version: 1.2.2
   -
     name: opsi
     tap:
@@ -31,4 +34,7 @@ brews:
     description: "All-in-one CLI for Beliven Ops daily usage!"
     license: "MIT"
     dependencies:
-      - name: fzf
+      - name: 1password-cli
+        version: 2.12.0
+      - name: hssh
+        version: 1.2.2
