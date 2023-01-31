@@ -139,6 +139,30 @@ func (g *Gitlab) setDefaultBranch(projectID int, branch string) error {
 	return nil
 }
 
+func (g *Gitlab) setCleanUpPolicy(projectID int) error {
+	var putPayload = map[string]interface{}{
+		"container_expiration_policy_attributes": map[string]interface{}{
+			"cadence":         "1month",
+			"enabled":         true,
+			"keep_n":          1,
+			"older_than":      "14d",
+			"name_regex":      ".*",
+			"name_regex_keep": ".*-main",
+		},
+	}
+
+	payloadAsBytes, err := json.Marshal(putPayload)
+	if err != nil {
+		return err
+	}
+
+	endpoint := fmt.Sprintf("/projects/%d", projectID)
+
+	_, err = g.request("PUT", endpoint, payloadAsBytes, nil)
+
+	return err
+}
+
 func (g *Gitlab) CreateProject(name string, path string, subgroupID int) error {
 	// Check if name and path
 	// are property set
@@ -228,6 +252,11 @@ func (g *Gitlab) CreateProject(name string, path string, subgroupID int) error {
 		PushAccessLevel:  0,
 		MergeAccessLevel: 30,
 	})
+	if err != nil {
+		return err
+	}
+
+	err = g.setCleanUpPolicy(project.ID)
 	if err != nil {
 		return err
 	}
