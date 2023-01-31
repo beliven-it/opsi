@@ -86,6 +86,13 @@ func initConfig() {
 }
 
 func init() {
+	if helpers.Which("op") == "" {
+		fmt.Println("Missing op executable")
+		fmt.Println("Please follow the instructions for install the binaries here:")
+		fmt.Print("\nhttps://developer.1password.com/docs/cli/get-started\n\n")
+		os.Exit(1)
+	}
+
 	cobra.OnInitialize(initConfig)
 	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.opsi.yaml)")
 }
