@@ -23,11 +23,16 @@ var Scripts embed.FS
 
 var ConfigTemplate embed.FS
 
+// Version of the app provided
+// in build phase
+var Version string
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "opsi",
-	Short: "The root command",
-	Long:  `The root command`,
+	Use:     "opsi",
+	Version: Version,
+	Short:   "The root command",
+	Long:    `The root command`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
