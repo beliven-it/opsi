@@ -1,40 +1,45 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// serversCmd represents the servers command
 var postmarkCreateServerCmd = &cobra.Command{
-	Use:   "server",
+	Use:   "server {server_name}",
+	Args:  cobra.ExactArgs(1),
 	Short: "Create a postmark server",
 	Long:  `Create a postmark server`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing name argument")
-		}
+	Example: `
+  Create a postmark server with name "my-server"
+  opsi postmark create my-server	
 
-		return nil
-	},
+  ---
+
+  Create a postmark server with name "my-server" and assign the red color
+  opsi postmark create my-server -c red
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// TODO: condider to move in scope location
 		if mainConfig.Postmark.SlackWebhook == "" {
 			fmt.Println("Missing slack webhook in configuration")
 			os.Exit(1)
 		}
 
+		// Take the name of postmark server
 		name := args[0]
+
+		// Take the color to attach
 		color, _ := cmd.Flags().GetString("color")
 
+		// Create server
 		postmark.CreateServer(name, color)
 	},
 }
 
 func init() {
 	postmarkCreateCmd.AddCommand(postmarkCreateServerCmd)
-
 	postmarkCreateServerCmd.Flags().StringP("color", "c", "blue", "The color settings for the server")
 }

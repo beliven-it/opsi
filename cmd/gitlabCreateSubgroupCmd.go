@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -9,34 +8,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// subgroupCmd represents the subgroup command
 var gitlabCreateSubgroupCmd = &cobra.Command{
-	Use:   "subgroup",
+	Use:   "subgroup {subgroup_name}",
+	Args:  cobra.ExactArgs(1),
 	Short: "Create a Gitlab subgroup",
-	Long: `Create a Gitlab subgroup. 
-	You must provide a valid name.
-	Make sure to have administrator permission to perform this request.
-	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing name argument")
-		}
+	Long:  "Create a Gitlab subgroup",
+	Example: `
+  Create a subgroup with name "research" attach to a specific group with id 1234
+  opsi gitlab create subgroup research -p 1234 
 
-		return nil
-	},
+  Create a subgroup with name "developments" to the root of the space
+  opsi gitlab create subgroup developments 
+
+  Create a subgroup with name "development" but with path to "devs"
+  opsi gitlab create subgroup development -p devs
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Take the name of the group
 		name := args[0]
+
+		// Take the parent from the flag
 		parent, _ := cmd.Flags().GetInt("parent")
+
+		// Take the pathname from the flag
 		pathname, _ := cmd.Flags().GetString("path")
 
+		// If parent is not provided
+		// let the system use the main configuration group ID
 		if parent == 0 {
 			parent = mainConfig.Gitlab.GroupID
 		}
 
+		// If the pathname is not provided
+		// let the system slugify the name
 		if pathname == "" {
 			pathname = slugify.Slugify(name)
 		}
 
+		// Create subgroup
 		err := gitlab.CreateSubgroup(name, pathname, parent)
 		if err != nil {
 			fmt.Println(err)
@@ -47,7 +56,6 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
 
 func init() {
 	gitlabCreateCmd.AddCommand(gitlabCreateSubgroupCmd)
-
-	gitlabCreateSubgroupCmd.Flags().IntP("parent", "s", 0, "The parent of the subgroup")
+	gitlabCreateSubgroupCmd.Flags().IntP("parent", "s", 0, "The parent of the subgroup you want create")
 	gitlabCreateSubgroupCmd.Flags().StringP("path", "p", "", "The slugify name for the subgroup")
 }

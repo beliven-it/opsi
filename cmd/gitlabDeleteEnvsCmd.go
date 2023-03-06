@@ -1,34 +1,48 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// subgroupCmd represents the subgroup command
 var gitlabDeleteEnvsCmd = &cobra.Command{
-	Use:   "envs",
+	Use:   "envs {project_id}",
+	Args:  cobra.ExactArgs(1),
 	Short: "Delete ENVs for Gitlab project",
-	Long: `Delete ENVs for Gitlab project. 
-	You must provide a valid project ID.
-	Make sure to have administrator permission to perform this request.
+	Long: `
+  Delete ENVs for a specific Gitlab project.
+  You can also delete the env for a specific environment using the 
+  flag -e. Please see the example section.
 	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing Project ID argument")
-		}
+	Example: `	
+  Delete ENVs for the project 1234.
+  opsi gitlab delete envs 1234
+	
+  ---
+	
+  Delete ENVS for the project 1234 but only for staging environment
+  opsi gitlab delete envs 1234 -e staging
+ 
+  ---
 
-		return nil
-	},
+  Delete ENVS for the project 1234 without ask for confirmation.
+  opsi gitlab delete envs 1234 -f
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Take project ID
 		projectID := args[0]
 
+		// Take the enviroment env if provided
 		env, _ := cmd.Flags().GetString("env")
+
+		// Take the force flag.
+		// This can safe your life.
+		// TODO: Move force logi here!
 		force, _ := cmd.Flags().GetBool("force")
 
+		// Delete environment
 		err := gitlab.DeleteEnvs(projectID, env, force)
 		if err != nil {
 			fmt.Println(err)
@@ -39,7 +53,6 @@ var gitlabDeleteEnvsCmd = &cobra.Command{
 
 func init() {
 	gitlabDeleteCmd.AddCommand(gitlabDeleteEnvsCmd)
-
 	gitlabDeleteEnvsCmd.Flags().StringP("env", "e", "*", "The environment scope")
 	gitlabDeleteEnvsCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
 }

@@ -1,38 +1,33 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// deprovisioningCmd represents the deprovisioning command
 var gitlabDeprovisioningCmd = &cobra.Command{
-	Use:   "deprovisioning",
-	Short: "Deprovisioning an user",
-	Long: `Deprovisioning an user. 
-	You must provide a valid username.
-	Make sure to have administrator permission to perform this request.
+	Use:   "deprovisioning {username}",
+	Args:  cobra.ExactArgs(1),
+	Short: "Remove an user from all groups and projects",
+	Long:  "Remove an user from all groups and projects",
+	Example: `
+  Remove the user john.doe from gitlab.
+  opsi gitlab deprovisioning john.doe	
 	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing username argument")
-		}
-
-		return nil
-	},
 	Run: func(cmd *cobra.Command, args []string) {
-
+		// Take the username
 		username := args[0]
 
+		// TODO: Add force logic
+
+		// Deprovisioning the user
 		err := gitlab.Deprovionioning(username)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
 	},
 }
 

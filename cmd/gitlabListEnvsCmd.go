@@ -1,33 +1,34 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// subgroupCmd represents the subgroup command
 var gitlabListEnvsCmd = &cobra.Command{
-	Use:   "envs",
+	Use:   "envs {project_id}",
+	Args:  cobra.ExactArgs(1),
 	Short: "List ENVs for Gitlab project",
-	Long: `List ENVs for Gitlab project. 
-	You must provide a valid project ID.
-	Make sure to have administrator permission to perform this request.
-	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing Project ID argument")
-		}
+	Long:  "List ENVs for Gitlab project",
+	Example: `
+  Show all envs for the project 1234
+  opsi gitlab list envs 1234
+  
+  ---
 
-		return nil
-	},
+  Show all envs for the project 1234 but only for staging environment
+  opsi gitlab list env 1234 -e staging
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Take project ID
 		projectID := args[0]
 
+		// Take env from flag
 		env, _ := cmd.Flags().GetString("env")
 
+		// List the envs
 		err := gitlab.ListEnvs(projectID, env)
 		if err != nil {
 			fmt.Println(err)
@@ -38,6 +39,5 @@ var gitlabListEnvsCmd = &cobra.Command{
 
 func init() {
 	gitlabListCmd.AddCommand(gitlabListEnvsCmd)
-
 	gitlabListEnvsCmd.Flags().StringP("env", "e", "*", "The environment scope")
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -9,20 +8,19 @@ import (
 )
 
 var onepasswordCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Allow to create the necessary assets for project for 1password",
-	Long: `In the specific this command generate:
+	Use:   "create {project_name}",
+	Args:  cobra.ExactArgs(1),
+	Short: "Allow to create a project inside a 1password environment",
+	Long: `
+Allow to create a project inside a 1password environment.
+In specific, the following entities will be created:
 
 - Vault PRI and relative group to allow to store private assets.
 - Vault PUB and relative groups to allow to store public assets.
 	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing project name argument")
-		}
-
-		return nil
-	},
+	Example: `  Create a 1password vault called "personal vault"
+  opsi 1password create "personal vault"	
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		err := onepassword.Create(args[0])
 		if err != nil {
