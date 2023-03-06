@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -11,39 +10,42 @@ import (
 
 // projectCmd represents the project command
 var gitlabCreateProjectCmd = &cobra.Command{
-	Use:   "project",
+	Use:   "project {project_name}",
+	Args:  cobra.ExactArgs(1),
 	Short: "Create a Gitlab project",
-	Long: `
-	Create a Gitlab project. 
-	You must provide a valid name as first argument.
+	Long:  "This command allow to create a Gitlab project in a specific workspace",
+	Example: `
+  Create a project with name "Password manager" for subgroup 12345:
+  opsi gitlab create project "Password manager" -g 12345 
 
-	You can also provide a subgroup instead using the default one.
+  ---
 
-	Make sure to have administrator permission to perform this request.
+  Create a project with name "Delorian" but path "my-delorian"
+  opsi gitlab create project Delorian -p my-delorian
 	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing name argument")
-		}
 
-		subgroup, _ := cmd.Flags().GetInt("subgroup")
-		if subgroup == 0 {
-			return errors.New("missing subgroup ID")
-		}
-
-		return nil
-	},
 	Run: func(cmd *cobra.Command, args []string) {
-
+		// Take project name
 		name := args[0]
-		subgroup, _ := cmd.Flags().GetInt("subgroup")
+
+		// Take flags
+		group, _ := cmd.Flags().GetInt("group")
 		pathname, _ := cmd.Flags().GetString("path")
 
+		// Slugify the name if the pathname flag
+		// for the project is not provided
 		if pathname == "" {
 			pathname = slugify.Slugify(name)
 		}
 
-		err := gitlab.CreateProject(name, pathname, subgroup)
+		// Use the global group ID for the project
+		// if the group id flag is not provided
+		if group == 0 {
+			group = mainConfig.Gitlab.GroupID
+		}
+
+		// Create the project
+		err := gitlab.CreateProject(name, pathname, group)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -53,7 +55,6 @@ var gitlabCreateProjectCmd = &cobra.Command{
 
 func init() {
 	gitlabCreateCmd.AddCommand(gitlabCreateProjectCmd)
-
-	gitlabCreateProjectCmd.Flags().IntP("subgroup", "s", 0, "The subgroup ID")
-	gitlabCreateProjectCmd.Flags().StringP("path", "p", "", "The slugify name for the project")
+	gitlabCreateProjectCmd.Flags().IntP("group", "g", 0, "the group associated to the project. If not provided the one in the configuration will be used")
+	gitlabCreateProjectCmd.Flags().StringP("path", "p", "", "the path for the project. This flag is useful if you don't want to use the project name for the path")
 }

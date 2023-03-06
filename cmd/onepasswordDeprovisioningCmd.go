@@ -9,14 +9,27 @@ import (
 
 var onepasswordDeprovisioningCmd = &cobra.Command{
 	Use:   "deprovisioning",
-	Short: "Deprovision 1password users",
-	Long:  "Deprovision 1password users. You can also specify an user email to deprovisioning only selected user.",
+	Short: "Deprovision 1password inactive users",
+	Long: `Deprovision 1password inactive users. 
+	If you need to deprovisioning a specific user, you can use the -e flag
+	and search the user by email. 
+
+	Show the examples and flags sections for further informations
+	`,
+	Example: `
+  Deprovisioning all inactive users from 1password workspace
+  opsi 1password deprovisioning	
+
+  ---
+
+  Deprovisioning the user with email john.doe@example.com from 1password workspace
+  opsi 1password deprovisioning -e john.doe@example.com
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Check and assign email argument
-		email := ""
-		if len(args) > 0 {
-			email = args[0]
-		}
+		// Take email from flag
+		email, _ := cmd.Flags().GetString("email")
+
+		// TODO: add force
 
 		// Start deprovisioning
 		err := onepassword.Deprovisioning(email)
@@ -29,4 +42,5 @@ var onepasswordDeprovisioningCmd = &cobra.Command{
 
 func init() {
 	onepasswordCmd.AddCommand(onepasswordDeprovisioningCmd)
+	onepasswordDeprovisioningCmd.Flags().StringP("email", "e", "", "The email of the user to deprovisioning")
 }

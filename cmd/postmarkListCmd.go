@@ -1,26 +1,15 @@
 package cmd
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
 )
 
 var postmarkListCmd = &cobra.Command{
 	Use:   "list",
+	Args:  cobra.ExactArgs(1),
 	Short: "Allow to list entities",
-	Long: `You can list one of the following entities:
-
-	- servers
-	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing entity argument")
-		}
-
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {},
+	Long:  "Allow to list entities",
+	Run:   func(cmd *cobra.Command, args []string) {},
 }
 
 func init() {

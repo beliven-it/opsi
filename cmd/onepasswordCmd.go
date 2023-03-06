@@ -1,28 +1,15 @@
 package cmd
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
 )
 
-// postmarkCmd represents the postmark command
 var onepasswordCmd = &cobra.Command{
-	Use:   "1password",
+	Use:   "1password {verb}",
+	Args:  cobra.ExactArgs(1),
 	Short: "The 1password scope commands",
-	Long: `
-	You must provide a valid verb.
-
-- create to perform the creation for the entity specified.
-	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing verb argument")
-		}
-
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {},
+	Long:  "The 1password scope commands",
+	Run:   func(cmd *cobra.Command, args []string) {},
 }
 
 func init() {

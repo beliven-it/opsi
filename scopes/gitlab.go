@@ -163,7 +163,7 @@ func (g *Gitlab) setCleanUpPolicy(projectID int) error {
 	return err
 }
 
-func (g *Gitlab) CreateProject(name string, path string, subgroupID int) error {
+func (g *Gitlab) CreateProject(name string, path string, groupID int) error {
 	// Check if name and path
 	// are property set
 	if name == "" || path == "" {
@@ -174,7 +174,7 @@ func (g *Gitlab) CreateProject(name string, path string, subgroupID int) error {
 	payload := gitlabProjectRequest{
 		Name:                         name,
 		Path:                         path,
-		NamespaceID:                  subgroupID,
+		NamespaceID:                  groupID,
 		MergeMethod:                  "ff",
 		AnalyticsAccessLevel:         "disabled",
 		SecurityAndComplianceEnabled: false,
@@ -499,7 +499,7 @@ func (g *Gitlab) BulkSettings() error {
 				})
 			}
 
-			if branchAsOctet == 7 && branchAsOctet == 3 {
+			if branchAsOctet == 7 || branchAsOctet == 3 {
 				actions = append(actions, gitlabSetupBranchRequest{
 					Name:             "staging",
 					PushAccessLevel:  0,

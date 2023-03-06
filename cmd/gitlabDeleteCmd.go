@@ -1,27 +1,16 @@
 package cmd
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
 )
 
 // gitlabCmd represents the gitlab command
 var gitlabDeleteCmd = &cobra.Command{
-	Use:   "delete",
+	Use:   "delete {entity}",
+	Args:  cobra.ExactArgs(1),
 	Short: "Allow to delete a specific entity",
-	Long: `You can delete one of the following entities:
-
-- envs
-	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing entity argument")
-		}
-
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {},
+	Long:  "Allow to delete a specific entity",
+	Run:   func(cmd *cobra.Command, args []string) {},
 }
 
 func init() {

@@ -13,6 +13,8 @@ var postmarkBulkServerCmd = &cobra.Command{
 	Short: "Bulk actions on servers",
 	Long:  `Bulk actions on servers`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Check for configuration
+		// TODO: consider to move inside the scope packet
 		if mainConfig.Postmark.SlackWebhook == "" {
 			fmt.Println("Missing slack webhook in configuration")
 			os.Exit(1)

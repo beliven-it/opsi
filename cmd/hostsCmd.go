@@ -1,28 +1,15 @@
 package cmd
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
 )
 
-// gitlabCmd represents the gitlab command
 var hostsCmd = &cobra.Command{
-	Use:   "hosts",
+	Use:   "hosts {verb}",
+	Args:  cobra.ExactArgs(1),
 	Short: "The hosts scope commands",
-	Long: `
-	You must provide a valid verb.
-
-- check-reboot to perform a search of hosts need to reboot.
-	`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("missing verb argument")
-		}
-
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {},
+	Long:  "The hosts scope commands",
+	Run:   func(cmd *cobra.Command, args []string) {},
 }
 
 func init() {

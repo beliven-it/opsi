@@ -11,10 +11,7 @@ import (
 var gitlabBulkSettingsCmd = &cobra.Command{
 	Use:   "settings",
 	Short: "Update gitlab settings projects",
-	Long: `
-	Update gitlab settings projects.
-	Make sure to have administrator permission to perform this request.
-	`,
+	Long:  "Update gitlab settings projects",
 	Run: func(cmd *cobra.Command, args []string) {
 		err := gitlab.BulkSettings()
 		if err != nil {

@@ -7,20 +7,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// gitlabCmd represents the gitlab command
 var hostsCheckRebootCmd = &cobra.Command{
 	Use:   "check-reboot",
 	Short: "Check hosts need to reboot",
-	Long: `This command check all the hosts contained in hssh CLI
-and check if the machine need to reboot
-	`,
+	Long:  "Check hosts need to reboot. The list of hosts are the ones of hssh CLI",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Check reboot
 		err := hosts.CheckReboot()
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-
 	},
 }
 
