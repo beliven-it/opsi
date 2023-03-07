@@ -33,20 +33,20 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
 		// Take the pathname from the flag
 		pathname, _ := cmd.Flags().GetString("path")
 
-		// If parent is not provided
-		// let the system use the main configuration group ID
-		if parent == 0 {
-			parent = mainConfig.Gitlab.GroupID
-		}
-
 		// If the pathname is not provided
 		// let the system slugify the name
 		if pathname == "" {
 			pathname = slugify.Slugify(name)
 		}
 
+		// Set the parent as nil if not provided
+		var parentAsPointer *int = &parent
+		if parent == 0 {
+			parentAsPointer = nil
+		}
+
 		// Create subgroup
-		err := gitlab.CreateSubgroup(name, pathname, parent)
+		err := gitlab.CreateSubgroup(name, pathname, parentAsPointer)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

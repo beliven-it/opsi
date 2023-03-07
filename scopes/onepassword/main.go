@@ -1,4 +1,4 @@
-package scopes
+package onepassword
 
 import (
 	"bufio"
@@ -12,74 +12,7 @@ import (
 	"strings"
 )
 
-type OnePassword struct {
-	address string
-	account OnePasswordAccount
-}
-
-type OnePasswordUser struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Type  string `json:"type"`
-	State string `json:"state"`
-}
-
-type OnePasswordAccount struct {
-	Url         string `json:"url"`
-	Email       string `json:"email"`
-	UserUUID    string `json:"user_uuid"`
-	AccountUUID string `json:"account_uuid"`
-}
-
-type OnePasswordGroup struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	State     string `json:"state"`
-	CreatedAt string `json:"created_at"`
-}
-
-type OnePasswordVault struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	ContentVersion int `json:"content_version"`
-}
-
-var privilegedPermissions = []string{
-	"view_items",
-	"create_items",
-	"edit_items",
-	"archive_items",
-	"delete_items",
-	"view_and_copy_passwords",
-	"view_item_history",
-	"import_items",
-	"export_items",
-	"copy_and_share_items",
-	"print_items",
-	"manage_vault",
-}
-
-var unprivilegedPriPermissions = []string{
-	"view_items",
-	"create_items",
-	"edit_items",
-	"archive_items",
-	"view_and_copy_passwords",
-	"view_item_history",
-	"import_items",
-	"export_items",
-	"copy_and_share_items",
-}
-
-var unprivilegedPubPermissions = []string{
-	"view_items",
-	"view_and_copy_passwords",
-	"view_item_history",
-	"copy_and_share_items",
-}
-
-func (o *OnePassword) grantPermissions(vaultName string, userGroup string, permissions []string) error {
+func (o *onePassword) grantPermissions(vaultName string, userGroup string, permissions []string) error {
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.Command("op", "vault", "group", "grant", "--vault", vaultName, "--group", userGroup, "--permissions", strings.Join(permissions, ","))
@@ -94,7 +27,7 @@ func (o *OnePassword) grantPermissions(vaultName string, userGroup string, permi
 	return nil
 }
 
-func (o *OnePassword) listAccounts() ([]OnePasswordAccount, error) {
+func (o *onePassword) listAccounts() ([]OnePasswordAccount, error) {
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.Command("op", "account", "list", "--format", "json")
@@ -122,7 +55,7 @@ func (o *OnePassword) listAccounts() ([]OnePasswordAccount, error) {
 	return accountFilteredByAddress, nil
 }
 
-func (o *OnePassword) listVaults() ([]OnePasswordVault, error) {
+func (o *onePassword) listVaults() ([]OnePasswordVault, error) {
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.Command("op", "vault", "list", "--format", "json")
@@ -143,7 +76,7 @@ func (o *OnePassword) listVaults() ([]OnePasswordVault, error) {
 	return listOfVaults, nil
 }
 
-func (o *OnePassword) listGroups() ([]OnePasswordGroup, error) {
+func (o *onePassword) listGroups() ([]OnePasswordGroup, error) {
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.Command("op", "group", "list", "--format", "json")
@@ -164,7 +97,7 @@ func (o *OnePassword) listGroups() ([]OnePasswordGroup, error) {
 	return listOfGroups, nil
 }
 
-func (o *OnePassword) createGroup(groupName string) error {
+func (o *onePassword) createGroup(groupName string) error {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("op", "group", "create", groupName)
 	cmd.Stdout = &stdout
@@ -178,7 +111,7 @@ func (o *OnePassword) createGroup(groupName string) error {
 	return nil
 }
 
-func (o *OnePassword) createVault(vaultName string) error {
+func (o *onePassword) createVault(vaultName string) error {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("op", "vault", "create", vaultName)
 	cmd.Stdout = &stdout
@@ -192,7 +125,7 @@ func (o *OnePassword) createVault(vaultName string) error {
 	return nil
 }
 
-func (o *OnePassword) revokeUserFromGroup(groupName string) error {
+func (o *onePassword) revokeUserFromGroup(groupName string) error {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("op", "group", "user", "revoke", "--user", o.account.UserUUID, "--group", groupName)
 	cmd.Stdout = &stdout
@@ -205,7 +138,7 @@ func (o *OnePassword) revokeUserFromGroup(groupName string) error {
 	return nil
 }
 
-func (o *OnePassword) revokeUserFromVault(vaultName string) error {
+func (o *onePassword) revokeUserFromVault(vaultName string) error {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("op", "vault", "user", "revoke", "--user", o.account.UserUUID, "--vault", vaultName)
 	cmd.Stdout = &stdout
@@ -218,7 +151,7 @@ func (o *OnePassword) revokeUserFromVault(vaultName string) error {
 	return nil
 }
 
-func (o *OnePassword) addVault(vaultName string) error {
+func (o *onePassword) addVault(vaultName string) error {
 	listOfVaults, err := o.listVaults()
 	if err != nil {
 		return err
@@ -243,7 +176,7 @@ func (o *OnePassword) addVault(vaultName string) error {
 	return nil
 }
 
-func (o *OnePassword) addGroup(groupName string) error {
+func (o *onePassword) addGroup(groupName string) error {
 	listOfGroups, err := o.listGroups()
 	if err != nil {
 		return err
@@ -268,7 +201,7 @@ func (o *OnePassword) addGroup(groupName string) error {
 	return nil
 }
 
-func (o *OnePassword) createContainer(projectName string, permissions []string) error {
+func (o *onePassword) createContainer(projectName string, permissions []string) error {
 	err := o.addGroup(projectName)
 	if err != nil {
 		return err
@@ -294,20 +227,20 @@ func (o *OnePassword) createContainer(projectName string, permissions []string) 
 		return err
 	}
 
-    err = o.revokeUserFromGroup(projectName)
-    if err != nil {
-        return err
-    }
+	err = o.revokeUserFromGroup(projectName)
+	if err != nil {
+		return err
+	}
 
-    err = o.revokeUserFromVault(projectName)
-    if err != nil {
-        return err
-    }
+	err = o.revokeUserFromVault(projectName)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (o *OnePassword) Create(projectName string) error {
+func (o *onePassword) Create(projectName string) error {
 	priName := projectName + " - PRI"
 	pubName := projectName + " - PUB"
 
@@ -365,7 +298,7 @@ func (o *OnePassword) Create(projectName string) error {
 	return nil
 }
 
-func (o *OnePassword) Deprovisioning(userEmail string) error {
+func (o *onePassword) Deprovisioning(userEmail string) error {
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.Command("op", "user", "list", "--format", "json")
@@ -421,7 +354,7 @@ func (o *OnePassword) Deprovisioning(userEmail string) error {
 }
 
 func NewOnePassword(address string) OnePassword {
-	return OnePassword{
+	return &onePassword{
 		address: address,
 	}
 }

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"opsi/config"
 	"opsi/helpers"
-	"opsi/scopes"
+	git "opsi/scopes/gitlab"
+	host "opsi/scopes/hosts"
+	op "opsi/scopes/onepassword"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -14,10 +16,9 @@ import (
 
 var mainConfig config.Config
 
-var gitlab scopes.Gitlab
-var postmark scopes.Postmark
-var onepassword scopes.OnePassword
-var hosts scopes.Hosts
+var gitlab git.Gitlab
+var onepassword op.OnePassword
+var hosts host.Host
 
 var Scripts embed.FS
 
@@ -84,10 +85,9 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	gitlab = scopes.NewGitlab(mainConfig.Gitlab.ApiURL, mainConfig.Gitlab.Token, mainConfig.Gitlab.GroupID)
-	postmark = scopes.NewPostmark(mainConfig.Postmark.ApiURL, mainConfig.Postmark.Token, mainConfig.Postmark.SlackWebhook)
-	onepassword = scopes.NewOnePassword(mainConfig.OnePassword.Address)
-	hosts = scopes.NewHosts()
+	gitlab = git.NewGitlab(mainConfig.Gitlab.ApiURL, mainConfig.Gitlab.Token, mainConfig.Gitlab.GroupID)
+	onepassword = op.NewOnePassword(mainConfig.OnePassword.Address)
+	hosts = host.NewHosts()
 }
 
 func init() {
@@ -99,5 +99,4 @@ func init() {
 	}
 
 	cobra.OnInitialize(initConfig)
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.opsi.yaml)")
 }

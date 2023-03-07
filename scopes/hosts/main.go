@@ -1,4 +1,4 @@
-package scopes
+package hosts
 
 import (
 	"bufio"
@@ -10,14 +10,11 @@ import (
 	"strings"
 )
 
-type Hosts struct {
-}
-
-func (o *Hosts) createConnectionString(host hostHSSH) string {
+func (o *host) createConnectionString(host hostHSSH) string {
 	return fmt.Sprintf("%s@%s", host.User, host.Hostname)
 }
 
-func (o *Hosts) createPortString(host hostHSSH) string {
+func (o *host) createPortString(host hostHSSH) string {
 	if host.Port == 0 {
 		return "22"
 	}
@@ -25,7 +22,7 @@ func (o *Hosts) createPortString(host hostHSSH) string {
 	return fmt.Sprintf("%d", host.Port)
 }
 
-func (o *Hosts) listHosts() ([]hostHSSH, []string, error) {
+func (o *host) listHosts() ([]hostHSSH, []string, error) {
 
 	var stdout, stderr bytes.Buffer
 
@@ -66,7 +63,7 @@ func (o *Hosts) listHosts() ([]hostHSSH, []string, error) {
 	return list, ignoredHosts, nil
 }
 
-func (o *Hosts) findHost(hostname string) (hostHSSH, error) {
+func (o *host) findHost(hostname string) (hostHSSH, error) {
 	host := hostHSSH{}
 	var stdout, stderr bytes.Buffer
 
@@ -112,7 +109,7 @@ func (o *Hosts) findHost(hostname string) (hostHSSH, error) {
 	return host, nil
 }
 
-func (o *Hosts) CheckReboot() error {
+func (o *host) CheckReboot() error {
 	listErrors := []string{}
 	listRebootable := []string{}
 	listUnrebootable := []string{}
@@ -183,6 +180,6 @@ func (o *Hosts) CheckReboot() error {
 
 }
 
-func NewHosts() Hosts {
-	return Hosts{}
+func NewHosts() Host {
+	return &host{}
 }

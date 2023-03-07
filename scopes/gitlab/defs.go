@@ -1,35 +1,29 @@
-package scopes
+package gitlab
 
-type postmarkEditRequest struct {
-	SmtpApiActivated           bool   `json:"SmtpApiActivated"`
-	RawEmailEnabled            bool   `json:"RawEmailEnabled"`
-	BounceHookUrl              string `json:"BounceHookUrl"`
-	PostFirstOpenOnly          bool   `json:"PostFirstOpenOnly"`
-	TrackOpens                 bool   `json:"TrackOpens"`
-	TrackLinks                 string `json:"TrackLinks"`
-	IncludeBounceContentInHook bool   `json:"IncludeBounceContentInHook"`
-	EnableSmtpApiErrorHooks    bool   `json:"EnableSmtpApiErrorHooks"`
+type gitlabProject struct {
 }
 
-type postmarkCreateRequest struct {
-	postmarkEditRequest
-	Name  string `json:"Name"`
-	Color string `json:"Color"`
+type gitlab struct {
+	token          string
+	groupID        int
+	apiURL         string
+	projectService gitlabProject
 }
 
-type postmarkServer struct {
-	ID   int    `json:"ID"`
-	Name string `json:"Name"`
+type Gitlab interface {
+	CreateEnvs(string, string, string) error
+	ListEnvs(string, string) error
+	DeleteEnvs(string, string, bool) error
+	CreateProject(string, string, int) error
+	CreateSubgroup(string, string, *int) error
+	BulkSettings() error
+	Deprovionioning(string) error
 }
 
-type postmarkServersResponse struct {
-	Servers []postmarkServer
-}
-
-type gitlabSubgroupRequest struct {
+type gitlabCreateSubgroupRequest struct {
 	Name                  string `json:"name"`
 	Path                  string `json:"path"`
-	ParentID              int    `json:"parent_id"`
+	ParentID              *int   `json:"parent_id"`
 	Visibility            string `json:"visibility"`
 	ProjectCreationLevel  string `json:"project_creation_level"`
 	SubgroupCreationLevel string `json:"subgroup_creation_level"`
@@ -40,7 +34,7 @@ type gitlabSubgroupResponse struct {
 	ID int `json:"id"`
 }
 
-type gitlabProjectRequest struct {
+type gitlabCreateProjectRequest struct {
 	Name                         string `json:"name"`
 	Path                         string `json:"path"`
 	NamespaceID                  int    `json:"namespace_id"`
@@ -100,10 +94,48 @@ type gitlabEnvRequest struct {
 	Protected        bool   `json:"protected"`
 }
 
-type hostHSSH struct {
-	Name     string
-	Hostname string
-	User     string
-	Port     int
-	Identity string
+var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
+	MergeMethod:                  "ff",
+	AnalyticsAccessLevel:         "disabled",
+	SecurityAndComplianceEnabled: false,
+	IssuesEnabled:                false,
+	ForkingAccessLevel:           "disabled",
+	LFSEnabled:                   false,
+	WikiEnabled:                  false,
+	PagesAccessLevel:             "disabled",
+	OperationsAccessLevel:        "disabled",
+	SharedRunnersEnabled:         false,
+	InitializeWithReadME:         true,
+	SquashOption:                 "never",
+}
+
+const defaultBranch = "master"
+
+var defaultProjectDevelopSettings = gitlabSetupBranchRequest{
+	Name:             "develop",
+	PushAccessLevel:  30,
+	MergeAccessLevel: 30,
+}
+
+var defaultProjectStagingSettings = gitlabSetupBranchRequest{
+	Name:             "staging",
+	PushAccessLevel:  0,
+	MergeAccessLevel: 30,
+}
+
+var defaultProjectMasterSettings = gitlabSetupBranchRequest{
+	Name:             "master",
+	PushAccessLevel:  0,
+	MergeAccessLevel: 30,
+}
+
+var defaultCleanUpPolicy = map[string]interface{}{
+	"container_expiration_policy_attributes": map[string]interface{}{
+		"cadence":         "1month",
+		"enabled":         true,
+		"keep_n":          1,
+		"older_than":      "14d",
+		"name_regex":      ".*",
+		"name_regex_keep": ".*-main",
+	},
 }
