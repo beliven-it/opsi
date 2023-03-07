@@ -1,4 +1,4 @@
-package scopes
+package gitlab
 
 import (
 	"bufio"
@@ -13,36 +13,41 @@ import (
 	"sync"
 )
 
-type Gitlab struct {
-	token   string
-	groupID int
-	apiURL  string
-}
-
-func (g *Gitlab) request(method string, endpoint string, body []byte, queryMap map[string]string) ([]byte, error) {
+// The request method perform an HTTP call into gitlab instance using
+// the APIs endpoints.
+func (g *gitlab) request(method string, endpoint string, body []byte, queryMap map[string]string) ([]byte, error) {
 	return helpers.Request(method, g.apiURL+endpoint, body, queryMap, map[string]string{
 		"Content-Type":  "application/json",
 		"PRIVATE-TOKEN": g.token,
 	})
 }
 
-func (g *Gitlab) listVariables(projectID string, env string) ([]gitlabProjectListVariable, error) {
+// Take the list of variables for the specified project ID.
+// Also, the output will be filtered for the environment provided.
+func (g *gitlab) listVariables(projectID string, env string) ([]gitlabProjectListVariable, error) {
 	response, err := g.request("GET", fmt.Sprintf("/projects/%s/variables", projectID), nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	// Convert the output of the response in
+	// an usable structure of data.
 	var listOfVariables []gitlabProjectListVariable
-
 	err = json.Unmarshal(response, &listOfVariables)
 	if err != nil {
 		return nil, err
 	}
 
+	// Check the environement.
+	// If the environment variable provided
+	// is all or a wildcard return the list without
+	// filtering.
 	if env == "all" || env == "*" {
 		return listOfVariables, nil
 	}
 
+	// Otherwise filter the variables by the
+	// environment provided.
 	listOfVariablesFiltered := []gitlabProjectListVariable{}
 	for _, variable := range listOfVariables {
 		if variable.EnvironmentScope == env {
@@ -53,63 +58,53 @@ func (g *Gitlab) listVariables(projectID string, env string) ([]gitlabProjectLis
 	return listOfVariablesFiltered, nil
 }
 
-func (g *Gitlab) walkThroughProjects(projects []gitlabEntityWithID, page int) []gitlabEntityWithID {
+// This is a recursive function for move through the paginated endpoint of
+// lists. The only way to perform this action is to iterate the endpoint
+// until the list of project is empty.
+func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWithID, page int) ([]gitlabEntityWithID, error) {
+	// Convert the page numeric value to integer.
+	// This is required because the query params structure accept
+	// a map of string of strings.
 	pageAsString := strconv.Itoa(page)
-	listAsBytes, err := g.request("GET", "/projects", nil, map[string]string{
+
+	// Perform the paginated http call.
+	listAsBytes, err := g.request("GET", endpoint, nil, map[string]string{
 		"page": pageAsString,
 	})
-
 	if err != nil {
-		return projects
+		return entities, err
 	}
 
-	var list []gitlabEntityWithID
-	err = json.Unmarshal(listAsBytes, &list)
-
-	if err != nil {
-		return projects
-	}
-
-	if len(list) == 0 {
-		return projects
-	} else {
-		projects = append(projects, list...)
-
-		return g.walkThroughProjects(projects, page+1)
-	}
-}
-
-func (g *Gitlab) walkThroughGroups(groups []gitlabEntityWithID, page int) []gitlabEntityWithID {
-	pageAsString := strconv.Itoa(page)
-	listAsBytes, err := g.request("GET", "/groups", nil, map[string]string{
-		"page": pageAsString,
-	})
-
-	if err != nil {
-		return groups
-	}
-
+	// Convert the response of the http call into a usable structure data.
 	var list []gitlabEntityWithID
 	err = json.Unmarshal(listAsBytes, &list)
 	if err != nil {
-		return groups
+		return entities, err
 	}
 
+	// If the list obtained is empty return the list of the projects collected until now.
 	if len(list) == 0 {
-		return groups
-	} else {
-		groups = append(groups, list...)
-
-		return g.walkThroughGroups(groups, page+1)
+		return entities, nil
 	}
+
+	// Otherwise continue to iterate the projects of the next page.
+	entities = append(entities, list...)
+	return g.walkThroughRequest(endpoint, entities, page+1)
+
 }
 
-func (g *Gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) error {
-
+func (g *gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) error {
+	// Create the endpoint
 	endpoint := fmt.Sprintf("/projects/%d/protected_branches/%s", projectID, branch.Name)
 
-	g.request("DELETE", endpoint, nil, nil)
-	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
+	// Delete the branch for the specific project
+	_, err := g.request("DELETE", endpoint, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	// Create the branch using the correct settings
+	_, err = g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
 		"name":               branch.Name,
 		"push_access_level":  strconv.Itoa(branch.PushAccessLevel),
 		"merge_access_level": strconv.Itoa(branch.MergeAccessLevel),
@@ -117,10 +112,11 @@ func (g *Gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) err
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (g *Gitlab) setDefaultBranch(projectID int, branch string) error {
+func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
 	var putPayload = map[string]interface{}{
 		"default_branch":                branch,
 		"ci_forward_deployment_enabled": false,
@@ -139,31 +135,21 @@ func (g *Gitlab) setDefaultBranch(projectID int, branch string) error {
 	return nil
 }
 
-func (g *Gitlab) setCleanUpPolicy(projectID int) error {
-	var putPayload = map[string]interface{}{
-		"container_expiration_policy_attributes": map[string]interface{}{
-			"cadence":         "1month",
-			"enabled":         true,
-			"keep_n":          1,
-			"older_than":      "14d",
-			"name_regex":      ".*",
-			"name_regex_keep": ".*-main",
-		},
-	}
+// Apply a cleanUP policy on gitlab project.
+func (g *gitlab) setCleanUpPolicy(projectID int) error {
+	var putPayload = defaultCleanUpPolicy
 
 	payloadAsBytes, err := json.Marshal(putPayload)
 	if err != nil {
 		return err
 	}
 
-	endpoint := fmt.Sprintf("/projects/%d", projectID)
-
-	_, err = g.request("PUT", endpoint, payloadAsBytes, nil)
+	_, err = g.request("PUT", fmt.Sprintf("/projects/%d", projectID), payloadAsBytes, nil)
 
 	return err
 }
 
-func (g *Gitlab) CreateProject(name string, path string, groupID int) error {
+func (g *gitlab) CreateProject(name string, path string, groupID int) error {
 	// Check if name and path
 	// are property set
 	if name == "" || path == "" {
@@ -171,23 +157,10 @@ func (g *Gitlab) CreateProject(name string, path string, groupID int) error {
 	}
 
 	// Create the POST request payload
-	payload := gitlabProjectRequest{
-		Name:                         name,
-		Path:                         path,
-		NamespaceID:                  groupID,
-		MergeMethod:                  "ff",
-		AnalyticsAccessLevel:         "disabled",
-		SecurityAndComplianceEnabled: false,
-		IssuesEnabled:                false,
-		ForkingAccessLevel:           "disabled",
-		LFSEnabled:                   false,
-		WikiEnabled:                  false,
-		PagesAccessLevel:             "disabled",
-		OperationsAccessLevel:        "disabled",
-		SharedRunnersEnabled:         false,
-		InitializeWithReadME:         true,
-		SquashOption:                 "never",
-	}
+	payload := defaultGitlabCreatePayload
+	payload.Name = name
+	payload.Path = path
+	payload.NamespaceID = groupID
 
 	payloadAsBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -208,52 +181,45 @@ func (g *Gitlab) CreateProject(name string, path string, groupID int) error {
 
 	fmt.Println("The project ID is:", project.ID)
 
-	_, err = g.request("POST", fmt.Sprintf("/projects/%d/repository/branches", project.ID), nil, map[string]string{
-		"branch": "staging",
-		"ref":    "master",
-	})
+	// Create array of branches payload to create
+	branches := []map[string]string{
+		{
+			"branch": "staging",
+			"ref":    "master",
+		},
+		{
+			"branch": "develop",
+			"ref":    "staging",
+		},
+	}
+
+	// Perform the request for create
+	endpoint := fmt.Sprintf("/projects/%d/repository/branches", project.ID)
+	for _, branch := range branches {
+		_, err = g.request("POST", endpoint, nil, branch)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup the default branch of the project
+	err = g.setDefaultBranch(project.ID, defaultBranch)
 	if err != nil {
 		return err
 	}
 
-	_, err = g.request("POST", fmt.Sprintf("/projects/%d/repository/branches", project.ID), nil, map[string]string{
-		"branch": "develop",
-		"ref":    "staging",
-	})
-	if err != nil {
-		return err
+	// Apply seggings to all the branches interested
+	requestsPayload := []gitlabSetupBranchRequest{
+		defaultProjectDevelopSettings,
+		defaultProjectStagingSettings,
+		defaultProjectMasterSettings,
 	}
 
-	err = g.setDefaultBranch(project.ID, "master")
-	if err != nil {
-		return err
-	}
-
-	err = g.setupBranch(project.ID, gitlabSetupBranchRequest{
-		Name:             "develop",
-		PushAccessLevel:  30,
-		MergeAccessLevel: 30,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = g.setupBranch(project.ID, gitlabSetupBranchRequest{
-		Name:             "staging",
-		PushAccessLevel:  0,
-		MergeAccessLevel: 30,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = g.setupBranch(project.ID, gitlabSetupBranchRequest{
-		Name:             "master",
-		PushAccessLevel:  0,
-		MergeAccessLevel: 30,
-	})
-	if err != nil {
-		return err
+	for _, payload := range requestsPayload {
+		err = g.setupBranch(project.ID, payload)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = g.setCleanUpPolicy(project.ID)
@@ -264,23 +230,35 @@ func (g *Gitlab) CreateProject(name string, path string, groupID int) error {
 	return nil
 }
 
-func (g *Gitlab) CreateEnvs(projectID string, env string, envPath string) error {
-	// Read file env provided
+func (g *gitlab) CreateEnvs(projectID string, env string, envPath string) error {
+	// Read the file env provided
 	envFile, err := os.Open(envPath)
 	if err != nil {
 		return err
 	}
 
+	// Close the file once the function is finish
 	defer envFile.Close()
 
+	// Create a scanner for read the file line by line
 	scanner := bufio.NewScanner(envFile)
 	scanner.Split(bufio.ScanLines)
 
+	// Prepare two regexp for check the existence of env vars with some pattern.
+	// If the var start with MASKED, on Gitlab the var must be set as "masked"
+	// If the var start with NOPROTECTED, on Gitlab the var must be set as "no protected"
 	maskedRgx := regexp.MustCompile(`MASKED_`)
 	unprotectedRgx := regexp.MustCompile(`NOPROTECTED_`)
 
+	// Read line by line the buffer
 	for scanner.Scan() {
+		// Take line into string rapresentation
 		text := scanner.Text()
+
+		// Each variable have this format. KEY = VALUE
+		// Separate the key from value splitting on character "="
+		// if the matchs are more than 2 means the value contains one
+		// or more "=" characters. Join these arguments again.
 		partials := strings.Split(text, "=")
 		if len(partials) < 2 {
 			continue
@@ -318,7 +296,7 @@ func (g *Gitlab) CreateEnvs(projectID string, env string, envPath string) error 
 	return nil
 }
 
-func (g *Gitlab) ListEnvs(projectID string, env string) error {
+func (g *gitlab) ListEnvs(projectID string, env string) error {
 	variables, err := g.listVariables(projectID, env)
 	if err != nil {
 		return err
@@ -357,7 +335,7 @@ func (g *Gitlab) ListEnvs(projectID string, env string) error {
 	return nil
 }
 
-func (g *Gitlab) DeleteEnvs(projectID string, env string, force bool) error {
+func (g *gitlab) DeleteEnvs(projectID string, env string, force bool) error {
 	variables, err := g.listVariables(projectID, env)
 	if err != nil {
 		return err
@@ -399,15 +377,14 @@ func (g *Gitlab) DeleteEnvs(projectID string, env string, force bool) error {
 }
 
 // Create subgroup
-func (g *Gitlab) CreateSubgroup(name string, path string, group int) error {
-	// Check if name and path
-	// are property set
+func (g *gitlab) CreateSubgroup(name string, path string, group *int) error {
+	// Check if name and path are property set
 	if name == "" || path == "" {
 		return errors.New("missing name or path arguments")
 	}
 
 	// Create the POST request payload
-	payload := gitlabSubgroupRequest{
+	payload := gitlabCreateSubgroupRequest{
 		Name:                  name,
 		Path:                  path,
 		ParentID:              group,
@@ -417,6 +394,7 @@ func (g *Gitlab) CreateSubgroup(name string, path string, group int) error {
 		RequestAccessEnabled:  false,
 	}
 
+	// Convert the request payload into an array of bytes
 	payloadAsBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -428,19 +406,25 @@ func (g *Gitlab) CreateSubgroup(name string, path string, group int) error {
 		return err
 	}
 
+	// Take the response
 	var subgroup gitlabSubgroupResponse
 	err = json.Unmarshal(bodyResponse, &subgroup)
 	if err != nil {
 		return err
 	}
 
+	// Print ID
 	fmt.Println("The subgroup ID is:", subgroup.ID)
 
 	return nil
 }
 
-func (g *Gitlab) BulkSettings() error {
-	projects := g.walkThroughProjects([]gitlabEntityWithID{}, 0)
+func (g *gitlab) BulkSettings() error {
+	projects, err := g.walkThroughRequest("/projects", []gitlabEntityWithID{}, 0)
+	if err != nil {
+		return err
+	}
+
 	wg := sync.WaitGroup{}
 
 	messages := map[int][]string{}
@@ -573,7 +557,7 @@ func (g *Gitlab) BulkSettings() error {
 }
 
 // Handle deprovisioninig of a user
-func (g *Gitlab) Deprovionioning(username string) error {
+func (g *gitlab) Deprovionioning(username string) error {
 	// Retrieve user ID by username
 	bodyResponse, err := g.request("GET", "/users", nil, map[string]string{
 		"username": username,
@@ -595,7 +579,10 @@ func (g *Gitlab) Deprovionioning(username string) error {
 	userID := users[0].ID
 
 	// List all projects wher
-	groups := g.walkThroughGroups([]gitlabEntityWithID{}, 0)
+	groups, err := g.walkThroughRequest("/groups", []gitlabEntityWithID{}, 0)
+	if err != nil {
+		return err
+	}
 	// projects := g.walkThroughProjects([]gitlabEntityWithID{}, 0)
 
 	wg := sync.WaitGroup{}
@@ -628,7 +615,7 @@ func (g *Gitlab) Deprovionioning(username string) error {
 }
 
 func NewGitlab(apiURL string, token string, groupID int) Gitlab {
-	return Gitlab{
+	return &gitlab{
 		apiURL:  apiURL,
 		token:   token,
 		groupID: groupID,
