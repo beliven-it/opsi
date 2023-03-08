@@ -2,18 +2,30 @@ package helpers
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 )
 
-func Request(method string, endpoint string, body []byte, queryMap map[string]string, headers map[string]string) ([]byte, error) {
+func Request(method string, endpoint string, body any, queryMap map[string]string, headers map[string]string) ([]byte, error) {
 	client := http.Client{}
+
+	// Convert the body in array of bytes
+	var payload []byte = nil
+	if body != nil {
+		p, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+
+		payload = p
+	}
 
 	// Add body
 	var bodyAsReader io.Reader
 	if body != nil {
-		bodyAsReader = bytes.NewReader(body)
+		bodyAsReader = bytes.NewReader(payload)
 	}
 
 	// Create request

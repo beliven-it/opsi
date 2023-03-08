@@ -2,45 +2,33 @@ package onepassword
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"opsi/helpers"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 )
 
+// Execute any OP command.
+func (o *onePassword) executeCommand(args ...string) ([]byte, error) {
+	return helpers.Exec("op", args...)
+}
+
 func (o *onePassword) grantPermissions(vaultName string, userGroup string, permissions []string) error {
-	var stdout, stderr bytes.Buffer
-
-	cmd := exec.Command("op", "vault", "group", "grant", "--vault", vaultName, "--group", userGroup, "--permissions", strings.Join(permissions, ","))
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-
-	return nil
+	_, err := o.executeCommand("vault", "group", "grant", "--vault", vaultName, "--group", userGroup, "--permissions", strings.Join(permissions, ","))
+	return err
 }
 
 func (o *onePassword) listAccounts() ([]OnePasswordAccount, error) {
-	var stdout, stderr bytes.Buffer
-
-	cmd := exec.Command("op", "account", "list", "--format", "json")
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	output, err := o.executeCommand("account", "list", "--format", "json")
 	if err != nil {
-		return nil, errors.New(stderr.String())
+		return nil, err
 	}
 
 	var listOfAccounts []OnePasswordAccount
-	err = json.Unmarshal(stdout.Bytes(), &listOfAccounts)
+	err = json.Unmarshal(output, &listOfAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -56,99 +44,45 @@ func (o *onePassword) listAccounts() ([]OnePasswordAccount, error) {
 }
 
 func (o *onePassword) listVaults() ([]OnePasswordVault, error) {
-	var stdout, stderr bytes.Buffer
-
-	cmd := exec.Command("op", "vault", "list", "--format", "json")
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	output, err := o.executeCommand("vault", "list", "--format", "json")
 	if err != nil {
-		return nil, errors.New(stderr.String())
+		return nil, err
 	}
 
 	var listOfVaults []OnePasswordVault
-	err = json.Unmarshal(stdout.Bytes(), &listOfVaults)
-	if err != nil {
-		return nil, err
-	}
-
-	return listOfVaults, nil
+	err = json.Unmarshal(output, &listOfVaults)
+	return listOfVaults, err
 }
 
 func (o *onePassword) listGroups() ([]OnePasswordGroup, error) {
-	var stdout, stderr bytes.Buffer
-
-	cmd := exec.Command("op", "group", "list", "--format", "json")
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return nil, errors.New(stderr.String())
-	}
-
-	var listOfGroups []OnePasswordGroup
-	err = json.Unmarshal(stdout.Bytes(), &listOfGroups)
+	output, err := o.executeCommand("group", "list", "--format", "json")
 	if err != nil {
 		return nil, err
 	}
 
-	return listOfGroups, nil
+	var listOfGroups []OnePasswordGroup
+	err = json.Unmarshal(output, &listOfGroups)
+	return listOfGroups, err
 }
 
 func (o *onePassword) createGroup(groupName string) error {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("op", "group", "create", groupName)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-
-	return nil
+	_, err := o.executeCommand("group", "create", groupName)
+	return err
 }
 
 func (o *onePassword) createVault(vaultName string) error {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("op", "vault", "create", vaultName)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-
-	return nil
+	_, err := o.executeCommand("vault", "create", vaultName)
+	return err
 }
 
 func (o *onePassword) revokeUserFromGroup(groupName string) error {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("op", "group", "user", "revoke", "--user", o.account.UserUUID, "--group", groupName)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-
-	return nil
+	_, err := o.executeCommand("group", "user", "revoke", "--user", o.account.UserUUID, "--group", groupName)
+	return err
 }
 
 func (o *onePassword) revokeUserFromVault(vaultName string) error {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("op", "vault", "user", "revoke", "--user", o.account.UserUUID, "--vault", vaultName)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-
-	return nil
+	_, err := o.executeCommand("vault", "user", "revoke", "--user", o.account.UserUUID, "--vault", vaultName)
+	return err
 }
 
 func (o *onePassword) addVault(vaultName string) error {
@@ -167,13 +101,8 @@ func (o *onePassword) addVault(vaultName string) error {
 		}
 	}
 
-	// Create vault
-	err = o.createVault(vaultName)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	// Create vault and return output response
+	return o.createVault(vaultName)
 }
 
 func (o *onePassword) addGroup(groupName string) error {
@@ -193,12 +122,7 @@ func (o *onePassword) addGroup(groupName string) error {
 	}
 
 	// Create group
-	err = o.createGroup(groupName)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return o.createGroup(groupName)
 }
 
 func (o *onePassword) createContainer(projectName string, permissions []string) error {
@@ -232,12 +156,7 @@ func (o *onePassword) createContainer(projectName string, permissions []string) 
 		return err
 	}
 
-	err = o.revokeUserFromVault(projectName)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return o.revokeUserFromVault(projectName)
 }
 
 func (o *onePassword) Create(projectName string) error {
@@ -290,28 +209,17 @@ func (o *onePassword) Create(projectName string) error {
 	}
 
 	// Grant permissions
-	err = o.grantPermissions(pubName, priName, unprivilegedPriPermissions)
+	return o.grantPermissions(pubName, priName, unprivilegedPriPermissions)
+}
+
+func (o *onePassword) Deprovisioning(userEmail string) error {
+	output, err := o.executeCommand("user", "list", "--format", "json")
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (o *onePassword) Deprovisioning(userEmail string) error {
-	var stdout, stderr bytes.Buffer
-
-	cmd := exec.Command("op", "user", "list", "--format", "json")
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-
 	var listOfUsers []OnePasswordUser
-	err = json.Unmarshal(stdout.Bytes(), &listOfUsers)
+	err = json.Unmarshal(output, &listOfUsers)
 	if err != nil {
 		return err
 	}

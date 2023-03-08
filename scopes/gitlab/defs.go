@@ -85,7 +85,7 @@ type gitlabUser struct {
 	ID int `json:"id"`
 }
 
-type gitlabEnvRequest struct {
+type gitlabCreateEnvRequest struct {
 	VariableType     string `json:"variable_type"`
 	Key              string `json:"key"`
 	Value            string `json:"value"`
