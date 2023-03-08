@@ -15,7 +15,7 @@ import (
 
 // The request method perform an HTTP call into gitlab instance using
 // the APIs endpoints.
-func (g *gitlab) request(method string, endpoint string, body []byte, queryMap map[string]string) ([]byte, error) {
+func (g *gitlab) request(method string, endpoint string, body any, queryMap map[string]string) ([]byte, error) {
 	return helpers.Request(method, g.apiURL+endpoint, body, queryMap, map[string]string{
 		"Content-Type":  "application/json",
 		"PRIVATE-TOKEN": g.token,
@@ -122,12 +122,8 @@ func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
 		"ci_forward_deployment_enabled": false,
 		"service_desk_enabled":          false,
 	}
-	payloadAsBytes, err := json.Marshal(putPayload)
-	if err != nil {
-		return err
-	}
 
-	_, err = g.request("PUT", fmt.Sprintf("/projects/%d", projectID), payloadAsBytes, nil)
+	_, err := g.request("PUT", fmt.Sprintf("/projects/%d", projectID), putPayload, nil)
 	if err != nil {
 		return err
 	}
@@ -137,14 +133,7 @@ func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
 
 // Apply a cleanUP policy on gitlab project.
 func (g *gitlab) setCleanUpPolicy(projectID int) error {
-	var putPayload = defaultCleanUpPolicy
-
-	payloadAsBytes, err := json.Marshal(putPayload)
-	if err != nil {
-		return err
-	}
-
-	_, err = g.request("PUT", fmt.Sprintf("/projects/%d", projectID), payloadAsBytes, nil)
+	_, err := g.request("PUT", fmt.Sprintf("/projects/%d", projectID), defaultCleanUpPolicy, nil)
 
 	return err
 }
@@ -162,13 +151,8 @@ func (g *gitlab) CreateProject(name string, path string, groupID int) error {
 	payload.Path = path
 	payload.NamespaceID = groupID
 
-	payloadAsBytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
 	// Execute the request
-	bodyResponse, err := g.request("POST", "/projects", payloadAsBytes, nil)
+	bodyResponse, err := g.request("POST", "/projects", payload, nil)
 	if err != nil {
 		return err
 	}
@@ -266,17 +250,24 @@ func (g *gitlab) CreateEnvs(projectID string, env string, envPath string) error 
 			partials[1] = strings.Join(partials[1:], "=")
 		}
 
+		// Take the KEY value
 		key := partials[0]
+
+		// Take the VAlUE
 		value := partials[1]
 
+		// Check if the key is masked
 		isMasked := maskedRgx.MatchString(key)
+
+		// Check if the key is unprotected
 		isUnProtected := unprotectedRgx.MatchString(key)
 
-		// Remove prefixes if any
+		// Remove the unprotected and masked prefix from the key
 		key = maskedRgx.ReplaceAllString(key, "")
 		key = unprotectedRgx.ReplaceAllString(key, "")
 
-		payload := gitlabEnvRequest{
+		// Create the payload for the env creation
+		payload := gitlabCreateEnvRequest{
 			VariableType:     "env_var",
 			Key:              key,
 			Value:            value,
@@ -285,29 +276,21 @@ func (g *gitlab) CreateEnvs(projectID string, env string, envPath string) error 
 			EnvironmentScope: env,
 		}
 
-		payloadAsBytes, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-
-		g.request("POST", fmt.Sprintf("/projects/%s/variables", projectID), payloadAsBytes, nil)
+		// Create the environment variable
+		g.request("POST", fmt.Sprintf("/projects/%s/variables", projectID), payload, nil)
 	}
 
 	return nil
 }
 
 func (g *gitlab) ListEnvs(projectID string, env string) error {
+	// Take the list of env
 	variables, err := g.listVariables(projectID, env)
 	if err != nil {
 		return err
 	}
 
-	if len(variables) == 0 {
-		fmt.Println("No variables to delete")
-		return nil
-	}
-
-	// Group env by environment
+	// Group the variables found by environment
 	var groupedVariables = map[string][]gitlabProjectListVariable{}
 	var maxKeyLength = 0
 	for _, variable := range variables {
@@ -394,14 +377,8 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) error {
 		RequestAccessEnabled:  false,
 	}
 
-	// Convert the request payload into an array of bytes
-	payloadAsBytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
 	// Execute the request
-	bodyResponse, err := g.request("POST", "/groups", payloadAsBytes, nil)
+	bodyResponse, err := g.request("POST", "/groups", payload, nil)
 	if err != nil {
 		return err
 	}
@@ -413,8 +390,8 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) error {
 		return err
 	}
 
-	// Print ID
-	fmt.Println("The subgroup ID is:", subgroup.ID)
+	// Print ID of the group
+	fmt.Println("The group ID is:", subgroup.ID)
 
 	return nil
 }
@@ -558,7 +535,7 @@ func (g *gitlab) BulkSettings() error {
 
 // Handle deprovisioninig of a user
 func (g *gitlab) Deprovionioning(username string) error {
-	// Retrieve user ID by username
+	// Retrieve user ID by the username provided.
 	bodyResponse, err := g.request("GET", "/users", nil, map[string]string{
 		"username": username,
 	})
@@ -566,16 +543,20 @@ func (g *gitlab) Deprovionioning(username string) error {
 		return err
 	}
 
+	// Convert response into a usable structure.
 	var users []gitlabUser
 	err = json.Unmarshal(bodyResponse, &users)
 	if err != nil {
 		return err
 	}
 
+	// If the list is empty the script cannot continue.
 	if len(users) == 0 {
 		return errors.New("user not found")
 	}
 
+	// Take the ID of the first user found.
+	// Tipically the result of the list must be one.
 	userID := users[0].ID
 
 	// List all projects wher

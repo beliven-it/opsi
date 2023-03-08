@@ -20,8 +20,6 @@ var gitlab git.Gitlab
 var onepassword op.OnePassword
 var hosts host.Host
 
-var Scripts embed.FS
-
 var ConfigTemplate embed.FS
 
 // Version of the app provided
