@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"opsi/helpers"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -37,13 +38,14 @@ var gitlabDeleteEnvsCmd = &cobra.Command{
 		// Take the enviroment env if provided
 		env, _ := cmd.Flags().GetString("env")
 
-		// Take the force flag.
-		// This can safe your life.
-		// TODO: Move force logi here!
+		// Take the force flag.This can safe your life.
 		force, _ := cmd.Flags().GetBool("force")
+		if !force {
+			helpers.Confirm()
+		}
 
 		// Delete environment
-		err := gitlab.DeleteEnvs(projectID, env, force)
+		err := gitlab.DeleteEnvs(projectID, env)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

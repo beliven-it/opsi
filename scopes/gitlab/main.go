@@ -318,32 +318,10 @@ func (g *gitlab) ListEnvs(projectID string, env string) error {
 	return nil
 }
 
-func (g *gitlab) DeleteEnvs(projectID string, env string, force bool) error {
+func (g *gitlab) DeleteEnvs(projectID string, env string) error {
 	variables, err := g.listVariables(projectID, env)
 	if err != nil {
 		return err
-	}
-
-	if !force {
-		if len(variables) == 0 {
-			fmt.Println("No variables to delete")
-			return nil
-		}
-
-		for _, variable := range variables {
-			fmt.Printf("- %s [%s]\n", variable.Key, variable.EnvironmentScope)
-		}
-
-		rgx := regexp.MustCompile(`\n`)
-
-		fmt.Println("The following variables will be deleted. Are you sure? (y/n)")
-		reader := bufio.NewReader(os.Stdin)
-		value, _ := reader.ReadString('\n')
-		value = rgx.ReplaceAllString(value, "")
-		if value != "y" {
-			fmt.Println("Ok, abort procedure")
-			return nil
-		}
 	}
 
 	for _, variable := range variables {
