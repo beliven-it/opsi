@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"opsi/helpers"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -20,7 +21,11 @@ var gitlabDeprovisioningCmd = &cobra.Command{
 		// Take the username
 		username := args[0]
 
-		// TODO: Add force logic
+		// Confirm the action
+		force, _ := cmd.Flags().GetBool("force")
+		if !force {
+			helpers.Confirm()
+		}
 
 		// Deprovisioning the user
 		err := gitlab.Deprovionioning(username)
@@ -33,4 +38,5 @@ var gitlabDeprovisioningCmd = &cobra.Command{
 
 func init() {
 	gitlabCmd.AddCommand(gitlabDeprovisioningCmd)
+	gitlabDeprovisioningCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
 }

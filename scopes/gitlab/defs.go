@@ -13,7 +13,7 @@ type gitlab struct {
 type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
-	DeleteEnvs(string, string, bool) error
+	DeleteEnvs(string, string) error
 	CreateProject(string, string, int) error
 	CreateSubgroup(string, string, *int) error
 	BulkSettings() error

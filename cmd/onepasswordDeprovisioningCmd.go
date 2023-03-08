@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"opsi/helpers"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -29,9 +30,13 @@ var onepasswordDeprovisioningCmd = &cobra.Command{
 		// Take email from flag
 		email, _ := cmd.Flags().GetString("email")
 
-		// TODO: add force
+		// Confirm the action
+		force, _ := cmd.Flags().GetBool("force")
+		if !force {
+			helpers.Confirm()
+		}
 
-		// Start deprovisioning
+		// Start the deprovisioning procedure
 		err := onepassword.Deprovisioning(email)
 		if err != nil {
 			fmt.Println(err)
@@ -43,4 +48,5 @@ var onepasswordDeprovisioningCmd = &cobra.Command{
 func init() {
 	onepasswordCmd.AddCommand(onepasswordDeprovisioningCmd)
 	onepasswordDeprovisioningCmd.Flags().StringP("email", "e", "", "The email of the user to deprovisioning")
+	onepasswordDeprovisioningCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
 }
