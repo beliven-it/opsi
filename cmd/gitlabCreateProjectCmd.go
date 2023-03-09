@@ -16,7 +16,7 @@ var gitlabCreateProjectCmd = &cobra.Command{
 	Long:  "This command allow to create a Gitlab project in a specific workspace",
 	Example: `
   Create a project with name "Password manager" for subgroup 12345:
-  opsi gitlab create project "Password manager" -g 12345 
+  opsi gitlab create project "Password manager" -s 12345 
 
   ---
 
@@ -45,16 +45,18 @@ var gitlabCreateProjectCmd = &cobra.Command{
 		}
 
 		// Create the project
-		err := gitlab.CreateProject(name, pathname, group)
+		projectID, err := gitlab.CreateProject(name, pathname, group)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		fmt.Println("Created new project with ID", projectID)
 	},
 }
 
 func init() {
 	gitlabCreateCmd.AddCommand(gitlabCreateProjectCmd)
-	gitlabCreateProjectCmd.Flags().IntP("group", "g", 0, "the group associated to the project. If not provided the one in the configuration will be used")
+	gitlabCreateProjectCmd.Flags().IntP("group", "s", 0, "the group associated to the project. If not provided the one in the configuration will be used")
 	gitlabCreateProjectCmd.Flags().StringP("path", "p", "", "the path for the project. This flag is useful if you don't want to use the project name for the path")
 }

@@ -1,21 +1,17 @@
 package gitlab
 
-type gitlabProject struct {
-}
-
 type gitlab struct {
-	token          string
-	groupID        int
-	apiURL         string
-	projectService gitlabProject
+	token         string
+	apiURL        string
+	defaultBranch string
 }
 
 type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
 	DeleteEnvs(string, string) error
-	CreateProject(string, string, int) error
-	CreateSubgroup(string, string, *int) error
+	CreateProject(string, string, int) (int, error)
+	CreateSubgroup(string, string, *int) (int, error)
 	BulkSettings() error
 	Deprovionioning(string) error
 }
@@ -109,8 +105,6 @@ var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
 	SquashOption:                 "never",
 }
 
-const defaultBranch = "master"
-
 var defaultProjectDevelopSettings = gitlabSetupBranchRequest{
 	Name:             "develop",
 	PushAccessLevel:  30,
@@ -119,12 +113,6 @@ var defaultProjectDevelopSettings = gitlabSetupBranchRequest{
 
 var defaultProjectStagingSettings = gitlabSetupBranchRequest{
 	Name:             "staging",
-	PushAccessLevel:  0,
-	MergeAccessLevel: 30,
-}
-
-var defaultProjectMasterSettings = gitlabSetupBranchRequest{
-	Name:             "master",
 	PushAccessLevel:  0,
 	MergeAccessLevel: 30,
 }

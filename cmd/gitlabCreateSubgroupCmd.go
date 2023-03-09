@@ -46,11 +46,13 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
 		}
 
 		// Create subgroup
-		err := gitlab.CreateSubgroup(name, pathname, parentAsPointer)
+		subgroupID, err := gitlab.CreateSubgroup(name, pathname, parentAsPointer)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		fmt.Println("Created new subgroup with ID", subgroupID)
 	},
 }
 
