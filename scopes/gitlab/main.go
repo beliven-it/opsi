@@ -569,6 +569,11 @@ func (g *gitlab) Deprovionioning(username string) error {
 }
 
 func NewGitlab(apiURL string, token string, defaultBranch string) Gitlab {
+
+	if defaultBranch == "" {
+		defaultBranch = "master"
+	}
+
 	return &gitlab{
 		apiURL:        apiURL,
 		token:         token,
