@@ -93,17 +93,17 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 
 }
 
-func (g *gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) error {
+func (g *gitlab) reSetupBranch(projectID int, branch gitlabSetupBranchRequest) error {
 	// Create the endpoint
-	// endpoint := fmt.Sprintf("/projects/%d/protected_branches/%s", projectID, branch.Name)
+	endpoint := fmt.Sprintf("/projects/%d/protected_branches/%s", projectID, branch.Name)
 
 	// Delete the branch for the specific project
-	// _, err := g.request("DELETE", endpoint, nil, nil)
-	// if err != nil {
-	//	fmt.Println(endpoint)
-	//	return err
-	//}
+	g.request("DELETE", endpoint, nil, nil)
 
+	return g.setupBranch(projectID, branch)
+}
+
+func (g *gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) error {
 	// Create the branch using the correct settings
 	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
 		"name":               branch.Name,
@@ -425,7 +425,17 @@ func (g *gitlab) BulkSettings() error {
 
 			var actions = []gitlabSetupBranchRequest{}
 
-			if branchAsOctet >= 5 {
+			// Project has only default branch like master or main
+			if branchAsOctet == 4 {
+				actions = append(actions, gitlabSetupBranchRequest{
+					Name:             g.defaultBranch,
+					PushAccessLevel:  30,
+					MergeAccessLevel: 30,
+				})
+			}
+
+			// Project has other branch before the default
+			if branchAsOctet > 4 {
 				actions = append(actions, gitlabSetupBranchRequest{
 					Name:             g.defaultBranch,
 					PushAccessLevel:  0,
@@ -433,15 +443,8 @@ func (g *gitlab) BulkSettings() error {
 				})
 			}
 
-			if branchAsOctet == 7 || branchAsOctet == 3 {
-				actions = append(actions, gitlabSetupBranchRequest{
-					Name:             "staging",
-					PushAccessLevel:  0,
-					MergeAccessLevel: 30,
-				})
-			}
-
-			if branchAsOctet == 6 {
+			// Project has only staging branch
+			if branchAsOctet == 2 {
 				actions = append(actions, gitlabSetupBranchRequest{
 					Name:             "staging",
 					PushAccessLevel:  30,
@@ -449,15 +452,17 @@ func (g *gitlab) BulkSettings() error {
 				})
 			}
 
-			if branchAsOctet == 4 {
+			// Project has other branch before the staging
+			if branchAsOctet == 3 || branchAsOctet == 6 || branchAsOctet == 7 {
 				actions = append(actions, gitlabSetupBranchRequest{
-					Name:             g.defaultBranch,
-					PushAccessLevel:  40,
-					MergeAccessLevel: 40,
+					Name:             "staging",
+					PushAccessLevel:  0,
+					MergeAccessLevel: 30,
 				})
 			}
 
-			if branchAsOctet == 1 {
+			// Project has develop branch
+			if branchAsOctet == 1 || branchAsOctet == 3 || branchAsOctet == 5 || branchAsOctet == 7 {
 				actions = append(actions, gitlabSetupBranchRequest{
 					Name:             "develop",
 					PushAccessLevel:  30,
@@ -491,6 +496,16 @@ func (g *gitlab) BulkSettings() error {
 					)
 				}
 
+			}
+
+			for _, action := range actions {
+				err = g.reSetupBranch(projectID, action)
+				if err != nil {
+					messages[projectID] = append(
+						messages[projectID],
+						fmt.Sprintf("Error on setup branch for project #%d: %s", projectID, err.Error()),
+					)
+				}
 			}
 
 		}(project.ID)
