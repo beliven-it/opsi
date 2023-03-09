@@ -27,7 +27,7 @@ The configuration file follow this schema:
 gitlab:
   api_url: "https://gitlab.com/api/v4"
   token: "<GITLAB_TOKEN>"
-  group_id: <GROUP_ID>
+  default_branch: "master"
 onepassword:
   address: "<ONEPASSWORD_ADDRESS>"
 ```
