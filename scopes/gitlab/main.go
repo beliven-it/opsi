@@ -22,6 +22,54 @@ func (g *gitlab) request(method string, endpoint string, body any, queryMap map[
 	})
 }
 
+func (g *gitlab) listUsers() ([]gitlabUser, error) {
+	// Take the users
+	response, err := g.request("GET", "/users", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the output of the response in
+	// an usable structure of data.
+	var listOfUsers []gitlabUser
+	err = json.Unmarshal(response, &listOfUsers)
+
+	return listOfUsers, err
+}
+
+func (g *gitlab) listLeadUsers() ([]gitlabUser, error) {
+	users, err := g.listUsers()
+	if err != nil {
+		return nil, err
+	}
+
+	leadNoteRgx := regexp.MustCompile(gitlabDefaultGroupMember)
+	leadUsers := []gitlabUser{}
+	for _, user := range users {
+		if leadNoteRgx.MatchString(user.Note) {
+			leadUsers = append(leadUsers, user)
+		}
+	}
+
+	return leadUsers, nil
+}
+
+func (g *gitlab) addUserToGroup(groupID int, userID int, accessLevel int) error {
+	// Create the payload for the request
+	payload := gitlabAddUserToGroupRequest{
+		ID:          groupID,
+		UserID:      userID,
+		AccessLevel: accessLevel,
+	}
+
+	// Make the endpoint
+	endpoint := fmt.Sprintf("/groups/%d/members", groupID)
+
+	// Perform the request
+	_, err := g.request("POST", endpoint, payload, nil)
+	return err
+}
+
 // Take the list of variables for the specified project ID.
 // Also, the output will be filtered for the environment provided.
 func (g *gitlab) listVariables(projectID string, env string) ([]gitlabProjectListVariable, error) {
@@ -87,10 +135,12 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 		return entities, nil
 	}
 
+	// Increase pagination
+	page = page + 1
+
 	// Otherwise continue to iterate the items of the next page.
 	entities = append(entities, list...)
-	return g.walkThroughRequest(endpoint, entities, page+1)
-
+	return g.walkThroughRequest(endpoint, entities, page)
 }
 
 func (g *gitlab) reSetupBranch(projectID int, branch gitlabSetupBranchRequest) error {
@@ -139,7 +189,7 @@ func (g *gitlab) applyCleanUpPolicy(projectID int) error {
 	return err
 }
 
-func (g *gitlab) CreateProject(name string, path string, groupID int) (int, error) {
+func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string) (int, error) {
 	// Create the POST request payload
 	payload := defaultGitlabCreatePayload
 	payload.Name = name
@@ -165,7 +215,7 @@ func (g *gitlab) CreateProject(name string, path string, groupID int) (int, erro
 	branches := []map[string]string{
 		{
 			"branch": "staging",
-			"ref":    g.defaultBranch,
+			"ref":    defaultBranch,
 		},
 		{
 			"branch": "develop",
@@ -182,7 +232,7 @@ func (g *gitlab) CreateProject(name string, path string, groupID int) (int, erro
 	}
 
 	// Set the default branch of the project
-	err = g.setDefaultBranch(project.ID, g.defaultBranch)
+	err = g.setDefaultBranch(project.ID, defaultBranch)
 	if err != nil {
 		return 0, err
 	}
@@ -192,7 +242,7 @@ func (g *gitlab) CreateProject(name string, path string, groupID int) (int, erro
 		defaultProjectDevelopSettings,
 		defaultProjectStagingSettings,
 		{
-			Name:             g.defaultBranch,
+			Name:             defaultBranch,
 			PushAccessLevel:  0,
 			MergeAccessLevel: 40,
 		},
@@ -365,35 +415,41 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, erro
 	var subgroup gitlabSubgroupResponse
 	err = json.Unmarshal(bodyResponse, &subgroup)
 
+	// If group is created at root level
+	// Provide the lead users to the group
+	if group == nil {
+		leadUsers, err := g.listLeadUsers()
+		if err != nil {
+			return 0, err
+		}
+
+		for _, user := range leadUsers {
+			g.addUserToGroup(subgroup.ID, user.ID, gitlabOwnerPermission)
+		}
+	}
+
 	// Return the values
 	return subgroup.ID, err
 }
 
-func (g *gitlab) BulkSettings() error {
-	projects, err := g.walkThroughRequest("/projects", []gitlabEntityWithID{}, 0)
+func (g *gitlab) BulkSettings(channel *chan string) error {
+	projects, err := g.walkThroughRequest("/projects", []gitlabEntityWithID{}, 1)
 	if err != nil {
 		return err
 	}
 
 	wg := sync.WaitGroup{}
 
-	messages := map[int][]string{}
-
 	for _, project := range projects {
 		wg.Add(1)
 		func(projectID int) {
 			defer wg.Done()
 
-			messages[projectID] = []string{}
-
-			messages[projectID] = append(messages[projectID], fmt.Sprintf("Update project #%d settings", projectID))
+			*channel <- fmt.Sprintf("Update project #%d settings", projectID)
 
 			response, err := g.request("GET", fmt.Sprintf("/projects/%d/repository/branches", projectID), nil, nil)
 			if err != nil {
-				messages[projectID] = append(
-					messages[projectID],
-					fmt.Sprintf("error fetching branches for project #%d", projectID),
-				)
+				*channel <- fmt.Sprintf("error fetching branches for project #%d", projectID)
 				return
 			}
 
@@ -401,17 +457,16 @@ func (g *gitlab) BulkSettings() error {
 
 			err = json.Unmarshal(response, &branches)
 			if err != nil {
-				messages[projectID] = append(
-					messages[projectID], fmt.Sprintf("cannot retrieve data about branches for project #%d", projectID),
-				)
+				*channel <- fmt.Sprintf("cannot retrieve data about branches for project #%d", projectID)
 				return
 			}
 
 			var branchAsOctet = 0
-
+			defaultBranch := ""
 			for _, branch := range branches {
-				if branch.Name == g.defaultBranch {
+				if branch.Default {
 					branchAsOctet += 4
+					defaultBranch = branch.Name
 				}
 
 				if branch.Name == "staging" {
@@ -428,7 +483,7 @@ func (g *gitlab) BulkSettings() error {
 			// Project has only default branch like master or main
 			if branchAsOctet == 4 {
 				actions = append(actions, gitlabSetupBranchRequest{
-					Name:             g.defaultBranch,
+					Name:             defaultBranch,
 					PushAccessLevel:  30,
 					MergeAccessLevel: 30,
 				})
@@ -437,7 +492,7 @@ func (g *gitlab) BulkSettings() error {
 			// Project has other branch before the default
 			if branchAsOctet > 4 {
 				actions = append(actions, gitlabSetupBranchRequest{
-					Name:             g.defaultBranch,
+					Name:             defaultBranch,
 					PushAccessLevel:  0,
 					MergeAccessLevel: 40,
 				})
@@ -472,49 +527,36 @@ func (g *gitlab) BulkSettings() error {
 
 			switch branchAsOctet {
 			case 7, 5, 4:
-				err = g.setDefaultBranch(projectID, g.defaultBranch)
+				err = g.setDefaultBranch(projectID, defaultBranch)
 				if err != nil {
-					messages[projectID] = append(
-						messages[projectID],
-						fmt.Sprintf("Error on set default branch %s for project #%d: %s", g.defaultBranch, projectID, err.Error()),
-					)
+					*channel <- fmt.Sprintf("Error on set default branch %s for project #%d: %s", defaultBranch, projectID, err.Error())
+				} else {
+					*channel <- fmt.Sprintf("Set default branch %s for project #%d", defaultBranch, projectID)
 				}
 			case 6, 3:
 				err = g.setDefaultBranch(projectID, "staging")
 				if err != nil {
-					messages[projectID] = append(
-						messages[projectID],
-						fmt.Sprintf("Error on set default branch %s for project #%d: %s", "staging", projectID, err.Error()),
-					)
+					*channel <- fmt.Sprintf("Error on set default branch %s for project #%d: %s", "staging", projectID, err.Error())
+				} else {
+					*channel <- fmt.Sprintf("Set default branch %s for project #%d", "staging", projectID)
 				}
 			case 1:
 				err = g.setDefaultBranch(projectID, "develop")
 				if err != nil {
-					messages[projectID] = append(
-						messages[projectID],
-						fmt.Sprintf("Error on set default branch %s for project #%d: %s", "develop", projectID, err.Error()),
-					)
+					*channel <- fmt.Sprintf("Error on set default branch %s for project #%d: %s", "develop", projectID, err.Error())
+				} else {
+					*channel <- fmt.Sprintf("Set default branch %s for project #%d", "develop", projectID)
 				}
-
 			}
 
 			for _, action := range actions {
 				err = g.reSetupBranch(projectID, action)
 				if err != nil {
-					messages[projectID] = append(
-						messages[projectID],
-						fmt.Sprintf("Error on setup branch for project #%d: %s", projectID, err.Error()),
-					)
+					*channel <- fmt.Sprintf("Error on setup branch for project #%d: %s", projectID, err.Error())
 				}
 			}
 
 		}(project.ID)
-	}
-
-	for _, msgs := range messages {
-		for _, message := range msgs {
-			helpers.Log(message)
-		}
 	}
 
 	wg.Wait()
@@ -548,7 +590,7 @@ func (g *gitlab) Deprovionioning(username string) error {
 	userID := users[0].ID
 
 	// List all projects wher
-	groups, err := g.walkThroughRequest("/groups", []gitlabEntityWithID{}, 0)
+	groups, err := g.walkThroughRequest("/groups", []gitlabEntityWithID{}, 1)
 	if err != nil {
 		return err
 	}
@@ -583,15 +625,9 @@ func (g *gitlab) Deprovionioning(username string) error {
 	return nil
 }
 
-func NewGitlab(apiURL string, token string, defaultBranch string) Gitlab {
-
-	if defaultBranch == "" {
-		defaultBranch = "master"
-	}
-
+func NewGitlab(apiURL string, token string) Gitlab {
 	return &gitlab{
-		apiURL:        apiURL,
-		token:         token,
-		defaultBranch: defaultBranch,
+		apiURL: apiURL,
+		token:  token,
 	}
 }

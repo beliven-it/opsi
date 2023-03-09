@@ -1,7 +1,6 @@
 gitlab:
   api_url: "https://gitlab.com/api/v4"
   token: "<GITLAB_TOKEN>"
-  defautl_branch: "master"
 postmark:
   api_url: "https://api.postmarkapp.com"
   token: <POSTMARK_TOKEN>

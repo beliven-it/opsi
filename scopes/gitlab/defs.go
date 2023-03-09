@@ -1,18 +1,17 @@
 package gitlab
 
 type gitlab struct {
-	token         string
-	apiURL        string
-	defaultBranch string
+	token  string
+	apiURL string
 }
 
 type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
 	DeleteEnvs(string, string) error
-	CreateProject(string, string, int) (int, error)
+	CreateProject(string, string, int, string) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
-	BulkSettings() error
+	BulkSettings(*chan string) error
 	Deprovionioning(string) error
 }
 
@@ -48,6 +47,12 @@ type gitlabCreateProjectRequest struct {
 	SquashOption                 string `json:"squash_option"`
 }
 
+type gitlabAddUserToGroupRequest struct {
+	ID          int `json:"id"`
+	UserID      int `json:"user_id"`
+	AccessLevel int `json:"access_level"`
+}
+
 type gitlabProjectResponse struct {
 	ID int `json:"id"`
 }
@@ -67,8 +72,9 @@ type gitlabEntityWithID struct {
 }
 
 type gitlabBranchResponse struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Default bool   `json:"default"`
 }
 
 type gitlabSetupBranchRequest struct {
@@ -78,7 +84,8 @@ type gitlabSetupBranchRequest struct {
 }
 
 type gitlabUser struct {
-	ID int `json:"id"`
+	ID   int    `json:"id"`
+	Note string `json:"note"`
 }
 
 type gitlabCreateEnvRequest struct {
@@ -127,3 +134,6 @@ var defaultCleanUpPolicy = map[string]interface{}{
 		"name_regex_keep": ".*-main",
 	},
 }
+
+const gitlabOwnerPermission int = 50
+const gitlabDefaultGroupMember string = "default_group_member"
