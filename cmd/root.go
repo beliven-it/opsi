@@ -83,8 +83,14 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	gitlab = git.NewGitlab(mainConfig.Gitlab.ApiURL, mainConfig.Gitlab.Token, mainConfig.Gitlab.GroupID)
+	gitlab = git.NewGitlab(
+		mainConfig.Gitlab.ApiURL,
+		mainConfig.Gitlab.Token,
+		mainConfig.Gitlab.DefaultBranch,
+	)
+
 	onepassword = op.NewOnePassword(mainConfig.OnePassword.Address)
+
 	hosts = host.NewHosts()
 }
 

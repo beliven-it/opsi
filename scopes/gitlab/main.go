@@ -82,12 +82,12 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 		return entities, err
 	}
 
-	// If the list obtained is empty return the list of the projects collected until now.
+	// If the list obtained is empty return the list of the items collected until now.
 	if len(list) == 0 {
 		return entities, nil
 	}
 
-	// Otherwise continue to iterate the projects of the next page.
+	// Otherwise continue to iterate the items of the next page.
 	entities = append(entities, list...)
 	return g.walkThroughRequest(endpoint, entities, page+1)
 
@@ -95,25 +95,29 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 
 func (g *gitlab) setupBranch(projectID int, branch gitlabSetupBranchRequest) error {
 	// Create the endpoint
-	endpoint := fmt.Sprintf("/projects/%d/protected_branches/%s", projectID, branch.Name)
+	// endpoint := fmt.Sprintf("/projects/%d/protected_branches/%s", projectID, branch.Name)
 
 	// Delete the branch for the specific project
-	_, err := g.request("DELETE", endpoint, nil, nil)
-	if err != nil {
-		return err
-	}
+	// _, err := g.request("DELETE", endpoint, nil, nil)
+	// if err != nil {
+	//	fmt.Println(endpoint)
+	//	return err
+	//}
 
 	// Create the branch using the correct settings
-	_, err = g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
+	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_branches", projectID), nil, map[string]string{
 		"name":               branch.Name,
 		"push_access_level":  strconv.Itoa(branch.PushAccessLevel),
 		"merge_access_level": strconv.Itoa(branch.MergeAccessLevel),
 	})
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
+}
+
+func (g *gitlab) createBranch(projectID int, branchPayload map[string]string) error {
+	endpoint := fmt.Sprintf("/projects/%d/repository/branches", projectID)
+	_, err := g.request("POST", endpoint, nil, branchPayload)
+	return err
 }
 
 func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
@@ -124,27 +128,18 @@ func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
 	}
 
 	_, err := g.request("PUT", fmt.Sprintf("/projects/%d", projectID), putPayload, nil)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 // Apply a cleanUP policy on gitlab project.
-func (g *gitlab) setCleanUpPolicy(projectID int) error {
+func (g *gitlab) applyCleanUpPolicy(projectID int) error {
 	_, err := g.request("PUT", fmt.Sprintf("/projects/%d", projectID), defaultCleanUpPolicy, nil)
 
 	return err
 }
 
-func (g *gitlab) CreateProject(name string, path string, groupID int) error {
-	// Check if name and path
-	// are property set
-	if name == "" || path == "" {
-		return errors.New("missing name or path arguments")
-	}
-
+func (g *gitlab) CreateProject(name string, path string, groupID int) (int, error) {
 	// Create the POST request payload
 	payload := defaultGitlabCreatePayload
 	payload.Name = name
@@ -154,22 +149,23 @@ func (g *gitlab) CreateProject(name string, path string, groupID int) error {
 	// Execute the request
 	bodyResponse, err := g.request("POST", "/projects", payload, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	// Read the response
 	var project gitlabProjectResponse
 	err = json.Unmarshal(bodyResponse, &project)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	fmt.Println("The project ID is:", project.ID)
-
-	// Create array of branches payload to create
+	// Prepare an array of branches.
+	// The branches contained in this array will be created
+	// along the default branch.
 	branches := []map[string]string{
 		{
 			"branch": "staging",
-			"ref":    "master",
+			"ref":    g.defaultBranch,
 		},
 		{
 			"branch": "develop",
@@ -177,41 +173,45 @@ func (g *gitlab) CreateProject(name string, path string, groupID int) error {
 		},
 	}
 
-	// Perform the request for create
-	endpoint := fmt.Sprintf("/projects/%d/repository/branches", project.ID)
+	// Perform the request for create the branch
 	for _, branch := range branches {
-		_, err = g.request("POST", endpoint, nil, branch)
+		err = g.createBranch(project.ID, branch)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	// Setup the default branch of the project
-	err = g.setDefaultBranch(project.ID, defaultBranch)
+	// Set the default branch of the project
+	err = g.setDefaultBranch(project.ID, g.defaultBranch)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	// Apply seggings to all the branches interested
+	// Apply settings to all the branches interested
 	requestsPayload := []gitlabSetupBranchRequest{
 		defaultProjectDevelopSettings,
 		defaultProjectStagingSettings,
-		defaultProjectMasterSettings,
+		{
+			Name:             g.defaultBranch,
+			PushAccessLevel:  0,
+			MergeAccessLevel: 40,
+		},
 	}
 
 	for _, payload := range requestsPayload {
 		err = g.setupBranch(project.ID, payload)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	err = g.setCleanUpPolicy(project.ID)
+	// Apply the cleanUP policy for the project created
+	err = g.applyCleanUpPolicy(project.ID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return project.ID, nil
 }
 
 func (g *gitlab) CreateEnvs(projectID string, env string, envPath string) error {
@@ -338,10 +338,10 @@ func (g *gitlab) DeleteEnvs(projectID string, env string) error {
 }
 
 // Create subgroup
-func (g *gitlab) CreateSubgroup(name string, path string, group *int) error {
+func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, error) {
 	// Check if name and path are property set
 	if name == "" || path == "" {
-		return errors.New("missing name or path arguments")
+		return 0, errors.New("missing name or path arguments")
 	}
 
 	// Create the POST request payload
@@ -358,20 +358,15 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) error {
 	// Execute the request
 	bodyResponse, err := g.request("POST", "/groups", payload, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Take the response
 	var subgroup gitlabSubgroupResponse
 	err = json.Unmarshal(bodyResponse, &subgroup)
-	if err != nil {
-		return err
-	}
 
-	// Print ID of the group
-	fmt.Println("The group ID is:", subgroup.ID)
-
-	return nil
+	// Return the values
+	return subgroup.ID, err
 }
 
 func (g *gitlab) BulkSettings() error {
@@ -415,7 +410,7 @@ func (g *gitlab) BulkSettings() error {
 			var branchAsOctet = 0
 
 			for _, branch := range branches {
-				if branch.Name == "master" {
+				if branch.Name == g.defaultBranch {
 					branchAsOctet += 4
 				}
 
@@ -432,7 +427,7 @@ func (g *gitlab) BulkSettings() error {
 
 			if branchAsOctet >= 5 {
 				actions = append(actions, gitlabSetupBranchRequest{
-					Name:             "master",
+					Name:             g.defaultBranch,
 					PushAccessLevel:  0,
 					MergeAccessLevel: 40,
 				})
@@ -456,7 +451,7 @@ func (g *gitlab) BulkSettings() error {
 
 			if branchAsOctet == 4 {
 				actions = append(actions, gitlabSetupBranchRequest{
-					Name:             "master",
+					Name:             g.defaultBranch,
 					PushAccessLevel:  40,
 					MergeAccessLevel: 40,
 				})
@@ -472,11 +467,11 @@ func (g *gitlab) BulkSettings() error {
 
 			switch branchAsOctet {
 			case 7, 5, 4:
-				err = g.setDefaultBranch(projectID, "master")
+				err = g.setDefaultBranch(projectID, g.defaultBranch)
 				if err != nil {
 					messages[projectID] = append(
 						messages[projectID],
-						fmt.Sprintf("Error on set default branch %s for project #%d: %s", "master", projectID, err.Error()),
+						fmt.Sprintf("Error on set default branch %s for project #%d: %s", g.defaultBranch, projectID, err.Error()),
 					)
 				}
 			case 6, 3:
@@ -573,10 +568,10 @@ func (g *gitlab) Deprovionioning(username string) error {
 	return nil
 }
 
-func NewGitlab(apiURL string, token string, groupID int) Gitlab {
+func NewGitlab(apiURL string, token string, defaultBranch string) Gitlab {
 	return &gitlab{
-		apiURL:  apiURL,
-		token:   token,
-		groupID: groupID,
+		apiURL:        apiURL,
+		token:         token,
+		defaultBranch: defaultBranch,
 	}
 }

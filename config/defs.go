@@ -7,9 +7,10 @@ type ConfigPostamark struct {
 }
 
 type ConfigGitlab struct {
-	Token   string `mapstructure:"token"`
-	GroupID int    `mapstructure:"group_id"`
-	ApiURL  string `mapstructure:"api_url"`
+	Token         string `mapstructure:"token"`
+	GroupID       int    `mapstructure:"group_id"`
+	ApiURL        string `mapstructure:"api_url"`
+	DefaultBranch string `mapstructure:"default_branch"`
 }
 
 type ConfigOnePassword struct {
