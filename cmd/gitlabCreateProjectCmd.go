@@ -44,12 +44,6 @@ var gitlabCreateProjectCmd = &cobra.Command{
 			pathname = slugify.Slugify(name)
 		}
 
-		// Use the global group ID for the project
-		// if the group id flag is not provided
-		if group == 0 {
-			group = mainConfig.Gitlab.GroupID
-		}
-
 		// Create the project
 		projectID, err := gitlab.CreateProject(name, pathname, group, defaultBranch)
 		if err != nil {
