@@ -18,7 +18,8 @@ In specific, the following entities will be created:
 - Vault PRI and relative group to allow to store private assets.
 - Vault PUB and relative groups to allow to store public assets.
 	`,
-	Example: `  Create a 1password vault called "personal vault"
+	Example: `  
+  Create a 1password vault called "personal vault"
   opsi 1password create "personal vault"	
 	`,
 	Run: func(cmd *cobra.Command, args []string) {

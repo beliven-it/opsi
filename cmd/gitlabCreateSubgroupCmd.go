@@ -17,8 +17,12 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
   Create a subgroup with name "research" attach to a specific group with id 1234
   opsi gitlab create subgroup research -p 1234 
 
+  ---
+
   Create a subgroup with name "developments" to the root of the space
   opsi gitlab create subgroup developments 
+
+  ---
 
   Create a subgroup with name "development" but with path to "devs"
   opsi gitlab create subgroup development -p devs
