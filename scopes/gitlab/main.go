@@ -22,9 +22,9 @@ func (g *gitlab) request(method string, endpoint string, body any, queryMap map[
 	})
 }
 
-func (g *gitlab) listUsers() ([]gitlabUser, error) {
+func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
 	// Take the users
-	response, err := g.request("GET", "/users", nil, nil)
+	response, err := g.request("GET", "/users", nil, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (g *gitlab) listUsers() ([]gitlabUser, error) {
 }
 
 func (g *gitlab) listLeadUsers() ([]gitlabUser, error) {
-	users, err := g.listUsers()
+	users, err := g.listUsers(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -573,16 +573,9 @@ func (g *gitlab) BulkSettings(channel *chan string) error {
 // Handle deprovisioninig of a user
 func (g *gitlab) Deprovionioning(username string) error {
 	// Retrieve user ID by the username provided.
-	bodyResponse, err := g.request("GET", "/users", nil, map[string]string{
+	users, err := g.listUsers(map[string]string{
 		"username": username,
 	})
-	if err != nil {
-		return err
-	}
-
-	// Convert response into a usable structure.
-	var users []gitlabUser
-	err = json.Unmarshal(bodyResponse, &users)
 	if err != nil {
 		return err
 	}
@@ -596,7 +589,7 @@ func (g *gitlab) Deprovionioning(username string) error {
 	// Tipically the result of the list must be one.
 	userID := users[0].ID
 
-	// List all projects wher
+	// List all projects
 	groups, err := g.walkThroughRequest("/groups", []gitlabEntityWithID{}, 1)
 	if err != nil {
 		return err
