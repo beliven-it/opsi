@@ -28,6 +28,8 @@ In specific, the following entities will be created:
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
+
+		fmt.Printf("Vaults created for project %s", args[0])
 	},
 }
 
