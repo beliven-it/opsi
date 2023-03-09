@@ -549,11 +549,18 @@ func (g *gitlab) BulkSettings(channel *chan string) error {
 				}
 			}
 
+			// Setup branches
 			for _, action := range actions {
 				err = g.reSetupBranch(projectID, action)
 				if err != nil {
 					*channel <- fmt.Sprintf("Error on setup branch for project #%d: %s", projectID, err.Error())
 				}
+			}
+
+			// Apply cleanup policy
+			err = g.applyCleanUpPolicy(projectID)
+			if err != nil {
+				*channel <- fmt.Sprintf("Error on apply cleanup policy for project #%d: %s", projectID, err.Error())
 			}
 
 		}(project.ID)
