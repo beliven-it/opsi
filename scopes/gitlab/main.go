@@ -189,6 +189,13 @@ func (g *gitlab) applyCleanUpPolicy(projectID int) error {
 	return err
 }
 
+// Set protected tags
+func (g *gitlab) setupTag(projectID int) error {
+	_, err := g.request("POST", fmt.Sprintf("/projects/%d/protected_tags", projectID), defaultProtectedTags, nil)
+
+	return err
+}
+
 func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string) (int, error) {
 	// Create the POST request payload
 	payload := defaultGitlabCreatePayload
@@ -253,6 +260,12 @@ func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBra
 		if err != nil {
 			return 0, err
 		}
+	}
+
+	// Set protected branches for tags
+	err = g.setupTag(project.ID)
+	if err != nil {
+		return 0, err
 	}
 
 	// Apply the cleanUP policy for the project created

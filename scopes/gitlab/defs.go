@@ -1,5 +1,9 @@
 package gitlab
 
+const gitlabOwnerPermission int = 50
+const gitlabMantainerPermission int = 40
+const gitlabDefaultGroupMember string = "default_group_member"
+
 type gitlab struct {
 	token  string
 	apiURL string
@@ -135,5 +139,11 @@ var defaultCleanUpPolicy = map[string]interface{}{
 	},
 }
 
-const gitlabOwnerPermission int = 50
-const gitlabDefaultGroupMember string = "default_group_member"
+var defaultProtectedTags = map[string]interface{}{
+	"allowed_to_create": []map[string]interface{}{
+		{
+			"access_level": gitlabMantainerPermission,
+		},
+	},
+	"name": "*",
+}
