@@ -15,17 +15,12 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
 	Long:  "Create a Gitlab subgroup",
 	Example: `
   Create a subgroup with name "research" attach to a specific group with id 1234
-  opsi gitlab create subgroup research -p 1234 
-
-  ---
-
-  Create a subgroup with name "developments" to the root of the space
-  opsi gitlab create subgroup developments 
+  opsi gitlab create subgroup research -s 1234 
 
   ---
 
   Create a subgroup with name "development" but with path to "devs"
-  opsi gitlab create subgroup development -p devs
+  opsi gitlab create subgroup development -p devs -s 1234
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take the name of the group
@@ -64,4 +59,7 @@ func init() {
 	gitlabCreateCmd.AddCommand(gitlabCreateSubgroupCmd)
 	gitlabCreateSubgroupCmd.Flags().IntP("parent", "s", 0, "The parent of the subgroup you want create")
 	gitlabCreateSubgroupCmd.Flags().StringP("path", "p", "", "The slugify name for the subgroup")
+
+	// Mark group as required
+	gitlabCreateSubgroupCmd.MarkFlagRequired("parent")
 }

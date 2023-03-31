@@ -60,4 +60,7 @@ func init() {
 	gitlabCreateProjectCmd.Flags().IntP("group", "s", 0, "the group associated to the project. If not provided the one in the configuration will be used")
 	gitlabCreateProjectCmd.Flags().StringP("path", "p", "", "the path for the project. This flag is useful if you don't want to use the project name for the path")
 	gitlabCreateProjectCmd.Flags().StringP("branch-default", "b", "main", "the default main branch. Possible values are master or main")
+
+	// Mark group as required
+	gitlabCreateProjectCmd.MarkFlagRequired("group")
 }
