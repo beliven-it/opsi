@@ -21,6 +21,11 @@ var gitlabCreateGroupCmd = &cobra.Command{
 
   Create a group with name "development" but with path to "devs"
   opsi gitlab create group development -p devs
+
+  ---
+
+  Create a group with name "development" with "public" visibility
+  opsi gitlab create group development -i public
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take the name of the group
