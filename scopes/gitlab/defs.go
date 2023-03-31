@@ -15,6 +15,7 @@ type Gitlab interface {
 	DeleteEnvs(string, string) error
 	CreateProject(string, string, int, string) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
+	CreateGroup(string, string, string) (int, error)
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
 }
@@ -30,7 +31,9 @@ type gitlabCreateSubgroupRequest struct {
 }
 
 type gitlabSubgroupResponse struct {
-	ID int `json:"id"`
+	ID                   int    `json:"id"`
+	Visibility           string `json:"visibility"`
+	RequestAccessEnabled bool   `json:"request_access_enabled"`
 }
 
 type gitlabCreateProjectRequest struct {
