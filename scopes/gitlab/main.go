@@ -22,6 +22,19 @@ func (g *gitlab) request(method string, endpoint string, body any, queryMap map[
 	})
 }
 
+func (g *gitlab) viewGroup(groupID int) (gitlabSubgroupResponse, error) {
+	var data gitlabSubgroupResponse
+	endpoint := fmt.Sprintf("/groups/%d", groupID)
+	response, err := g.request("GET", endpoint, nil, nil)
+	if err != nil {
+		return data, err
+	}
+
+	err = json.Unmarshal(response, &data)
+
+	return data, err
+}
+
 func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
 	// Take the users
 	response, err := g.request("GET", "/users", nil, filters)
@@ -401,21 +414,10 @@ func (g *gitlab) DeleteEnvs(projectID string, env string) error {
 }
 
 // Create subgroup
-func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, error) {
+func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 	// Check if name and path are property set
-	if name == "" || path == "" {
+	if payload.Name == "" || payload.Path == "" {
 		return 0, errors.New("missing name or path arguments")
-	}
-
-	// Create the POST request payload
-	payload := gitlabCreateSubgroupRequest{
-		Name:                  name,
-		Path:                  path,
-		ParentID:              group,
-		Visibility:            "private",
-		ProjectCreationLevel:  "maintainer",
-		SubgroupCreationLevel: "owner",
-		RequestAccessEnabled:  false,
 	}
 
 	// Execute the request
@@ -430,7 +432,7 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, erro
 
 	// If group is created at root level
 	// Provide the lead users to the group
-	if group == nil {
+	if payload.ParentID == nil {
 		leadUsers, err := g.listLeadUsers()
 		if err != nil {
 			return 0, err
@@ -443,6 +445,43 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, erro
 
 	// Return the values
 	return subgroup.ID, err
+}
+
+// Create group
+func (g *gitlab) CreateGroup(name string, path string, visibility string) (int, error) {
+	payload := gitlabCreateSubgroupRequest{
+		Name:                  name,
+		Path:                  path,
+		ParentID:              nil,
+		Visibility:            visibility,
+		RequestAccessEnabled:  false,
+		ProjectCreationLevel:  "maintainer",
+		SubgroupCreationLevel: "owner",
+	}
+
+	return g.createGroup(payload)
+}
+
+// Create subgroup
+func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, error) {
+	// Inherit some attributes from the parent group
+	parentGroupDetail, err := g.viewGroup(*group)
+	if err != nil {
+		return 0, err
+	}
+
+	// Create the POST request payload
+	payload := gitlabCreateSubgroupRequest{
+		Name:                  name,
+		Path:                  path,
+		ParentID:              group,
+		Visibility:            parentGroupDetail.Visibility,
+		RequestAccessEnabled:  parentGroupDetail.RequestAccessEnabled,
+		ProjectCreationLevel:  "maintainer",
+		SubgroupCreationLevel: "owner",
+	}
+
+	return g.createGroup(payload)
 }
 
 func (g *gitlab) BulkSettings(channel *chan string) error {

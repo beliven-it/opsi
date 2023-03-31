@@ -29,6 +29,9 @@ var gitlabCreateGroupCmd = &cobra.Command{
 		// Take the pathname from the flag
 		pathname, _ := cmd.Flags().GetString("path")
 
+		// Take the visibility from the flag
+		visibility, _ := cmd.Flags().GetString("visibility")
+
 		// If the pathname is not provided
 		// let the system slugify the name
 		if pathname == "" {
@@ -36,7 +39,7 @@ var gitlabCreateGroupCmd = &cobra.Command{
 		}
 
 		// Create subgroup
-		groupID, err := gitlab.CreateSubgroup(name, pathname, nil)
+		groupID, err := gitlab.CreateGroup(name, pathname, visibility)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -49,4 +52,5 @@ var gitlabCreateGroupCmd = &cobra.Command{
 func init() {
 	gitlabCreateCmd.AddCommand(gitlabCreateGroupCmd)
 	gitlabCreateGroupCmd.Flags().StringP("path", "p", "", "The slugify name for the group")
+	gitlabCreateGroupCmd.Flags().StringP("visibility", "i", "private", "Set the visibility of the group")
 }
