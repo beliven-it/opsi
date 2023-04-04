@@ -7,17 +7,33 @@ const gitlabDefaultGroupMember string = "default_group_member"
 type gitlab struct {
 	token  string
 	apiURL string
+	mirror GitlabMirrorOptions
 }
 
 type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
 	DeleteEnvs(string, string) error
-	CreateProject(string, string, int, string) (int, error)
+	CreateProject(string, string, int, string, bool) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
 	CreateGroup(string, string, string) (int, error)
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
+}
+
+type GitlabMirrorOptions struct {
+	Token     string `mapstructure:"token"`
+	ApiURL    string `mapstructure:"api_url"`
+	GroupPath string `mapstructure:"group_path"`
+	Username  string `mapstructure:"username"`
+	Password  string `mapstructure:"password"`
+	GroupID   int    `mapstructure:"group_id"`
+}
+
+type gitlabCreateMirrorRequest struct {
+	Enabled               bool   `json:"enabled"`
+	URL                   string `json:"url"`
+	OnlyProtectedBranched bool   `json:"only_protected_branches"`
 }
 
 type gitlabCreateSubgroupRequest struct {

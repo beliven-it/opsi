@@ -1,5 +1,7 @@
 package config
 
+import "opsi/scopes/gitlab"
+
 type ConfigPostamark struct {
 	Token        string `mapstructure:"token"`
 	SlackWebhook string `mapstructure:"slack_webhook"`
@@ -7,8 +9,9 @@ type ConfigPostamark struct {
 }
 
 type ConfigGitlab struct {
-	Token  string `mapstructure:"token"`
-	ApiURL string `mapstructure:"api_url"`
+	Token  string                     `mapstructure:"token"`
+	ApiURL string                     `mapstructure:"api_url"`
+	Mirror gitlab.GitlabMirrorOptions `mapstructure:"mirror"`
 }
 
 type ConfigOnePassword struct {

@@ -22,6 +22,13 @@ func (g *gitlab) request(method string, endpoint string, body any, queryMap map[
 	})
 }
 
+func (g *gitlab) mirrorRequest(method string, endpoint string, body any, queryMap map[string]string) ([]byte, error) {
+	return helpers.Request(method, g.mirror.ApiURL+endpoint, body, queryMap, map[string]string{
+		"Content-Type":  "application/json",
+		"PRIVATE-TOKEN": g.mirror.Token,
+	})
+}
+
 func (g *gitlab) viewGroup(groupID int) (gitlabSubgroupResponse, error) {
 	var data gitlabSubgroupResponse
 	endpoint := fmt.Sprintf("/groups/%d", groupID)
@@ -33,6 +40,18 @@ func (g *gitlab) viewGroup(groupID int) (gitlabSubgroupResponse, error) {
 	err = json.Unmarshal(response, &data)
 
 	return data, err
+}
+
+func (g *gitlab) enableMirrorForProject(projectID int, projectName string) ([]byte, error) {
+	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors", projectID)
+
+	payload := gitlabCreateMirrorRequest{
+		Enabled:               true,
+		OnlyProtectedBranched: true,
+		URL:                   fmt.Sprintf("https://%s:%s@%s/%s.git", g.mirror.Username, g.mirror.Token, g.mirror.GroupPath, projectName),
+	}
+
+	return g.request("POST", endpoint, payload, nil)
 }
 
 func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
@@ -209,22 +228,52 @@ func (g *gitlab) setupTag(projectID int) error {
 	return err
 }
 
-func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string) (int, error) {
-	// Create the POST request payload
+func (g *gitlab) createProject(name string, path string, groupID int, useMirrorRequest bool) (gitlabProjectResponse, error) {
+	var project gitlabProjectResponse
+
 	payload := defaultGitlabCreatePayload
 	payload.Name = name
 	payload.Path = path
 	payload.NamespaceID = groupID
 
 	// Execute the request
-	bodyResponse, err := g.request("POST", "/projects", payload, nil)
+	var bodyResponse []byte
+	var err error
+	var endpoint = "/projects"
+
+	if useMirrorRequest {
+		bodyResponse, err = g.mirrorRequest("POST", endpoint, payload, nil)
+	} else {
+		bodyResponse, err = g.request("POST", endpoint, payload, nil)
+	}
+
 	if err != nil {
-		return 0, err
+		return project, err
 	}
 
 	// Read the response
-	var project gitlabProjectResponse
 	err = json.Unmarshal(bodyResponse, &project)
+	return project, err
+}
+
+func (g *gitlab) createMirrorProject(name string, path string, groupID int) error {
+	mirrorProject, err := g.createProject(name, path, groupID, true)
+	if err != nil {
+		return err
+	}
+
+	endpoint := fmt.Sprintf("/projects/%d/protected_branches/main", mirrorProject.ID)
+	payload := map[string]interface{}{
+		"allow_force_push": true,
+	}
+
+	_, err = g.mirrorRequest("PATCH", endpoint, payload, nil)
+	return err
+}
+
+func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string, withMirror bool) (int, error) {
+	// Create the project
+	project, err := g.createProject(name, path, groupID, false)
 	if err != nil {
 		return 0, err
 	}
@@ -285,6 +334,17 @@ func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBra
 	err = g.applyCleanUpPolicy(project.ID)
 	if err != nil {
 		return 0, err
+	}
+
+	// If mirror is enables create the mirror project
+	if withMirror {
+		err = g.createMirrorProject(name, path, g.mirror.GroupID)
+		if err != nil {
+			return 0, err
+		}
+
+		// Setup mirror project
+		g.enableMirrorForProject(project.ID, path)
 	}
 
 	return project.ID, nil
@@ -677,9 +737,10 @@ func (g *gitlab) Deprovionioning(username string) error {
 	return nil
 }
 
-func NewGitlab(apiURL string, token string) Gitlab {
+func NewGitlab(apiURL string, token string, mirror GitlabMirrorOptions) Gitlab {
 	return &gitlab{
 		apiURL: apiURL,
 		token:  token,
+		mirror: mirror,
 	}
 }
