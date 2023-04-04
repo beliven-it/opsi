@@ -27,6 +27,12 @@ var gitlabCreateProjectCmd = &cobra.Command{
 
   Create a project with name "Valerian" using "master" as default branch
   opsi gitlab create project Valerian -b master
+
+  ---
+
+  Create a project with name "Akkadian" enabling mirroring to another gitlab
+  opsi gitlab create project Akkadian -m
+
 	`,
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -37,6 +43,7 @@ var gitlabCreateProjectCmd = &cobra.Command{
 		group, _ := cmd.Flags().GetInt("group")
 		pathname, _ := cmd.Flags().GetString("path")
 		defaultBranch, _ := cmd.Flags().GetString("branch-default")
+		mirror, _ := cmd.Flags().GetBool("mirror")
 
 		// Slugify the name if the pathname flag
 		// for the project is not provided
@@ -45,7 +52,7 @@ var gitlabCreateProjectCmd = &cobra.Command{
 		}
 
 		// Create the project
-		projectID, err := gitlab.CreateProject(name, pathname, group, defaultBranch)
+		projectID, err := gitlab.CreateProject(name, pathname, group, defaultBranch, mirror)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -60,6 +67,7 @@ func init() {
 	gitlabCreateProjectCmd.Flags().IntP("group", "s", 0, "the group associated to the project. If not provided the one in the configuration will be used")
 	gitlabCreateProjectCmd.Flags().StringP("path", "p", "", "the path for the project. This flag is useful if you don't want to use the project name for the path")
 	gitlabCreateProjectCmd.Flags().StringP("branch-default", "b", "main", "the default main branch. Possible values are master or main")
+	gitlabCreateProjectCmd.Flags().BoolP("mirror", "m", false, "Enable or disable the mirroring repo. Default is false")
 
 	// Mark group as required
 	gitlabCreateProjectCmd.MarkFlagRequired("group")
