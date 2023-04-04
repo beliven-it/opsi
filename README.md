@@ -25,9 +25,14 @@ The configuration file follow this schema:
 
 ```yml
 gitlab:
-  api_url: "https://gitlab.com/api/v4"
+  api_url: "https://company.gitlab.com/api/v4"
   token: "<GITLAB_TOKEN>"
-  default_branch: "master"
+  mirror:
+    url: "https://gitlab.com/api/v4"
+    group_id: "<GITLAB_MIRROR_GROUP_ID>"
+    group_path: "gitlab.com/<GROUP_NAME>"  
+    username: "<GITLAB_MIRROR_USERNAME>"
+    token: "<GITLAB_MIRROR_TOKEN>"
 onepassword:
   address: "<ONEPASSWORD_ADDRESS>"
 ```
