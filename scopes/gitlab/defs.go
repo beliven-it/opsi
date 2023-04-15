@@ -6,6 +6,7 @@ const gitlabDeveloperPermission int = 30
 const gitlabDefaultGroupMemberMantainer string = "default_group_member_mantainer"
 const gitlabDefaultGroupMemberDeveloper string = "default_group_member_developer"
 const gitlabDefaultGroupMemberOwner string = "default_group_member_owner"
+const gitlabDefaultGroupMember string = "default_group_member"
 
 type gitlab struct {
 	token  string
