@@ -69,13 +69,13 @@ func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
 	return listOfUsers, err
 }
 
-func (g *gitlab) listLeadUsers() ([]gitlabUser, error) {
+func (g *gitlab) listDefaultUsers(tipology string) ([]gitlabUser, error) {
 	users, err := g.listUsers(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	leadNoteRgx := regexp.MustCompile(gitlabDefaultGroupMember)
+	leadNoteRgx := regexp.MustCompile(tipology)
 	leadUsers := []gitlabUser{}
 	for _, user := range users {
 		if leadNoteRgx.MatchString(user.Note) {
@@ -490,16 +490,22 @@ func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 	var subgroup gitlabSubgroupResponse
 	err = json.Unmarshal(bodyResponse, &subgroup)
 
-	// If group is created at root level
-	// Provide the lead users to the group
-	if payload.ParentID == nil {
-		leadUsers, err := g.listLeadUsers()
+	// If the group is create at root level,
+	// provide some default users to the group
+	typeOfUsers := []gitlabDefaultUser{
+		{tipology: gitlabDefaultGroupMemberDeveloper, permission: gitlabDeveloperPermission},
+		{tipology: gitlabDefaultGroupMemberMantainer, permission: gitlabMantainerPermission},
+		{tipology: gitlabDefaultGroupMemberOwner, permission: gitlabOwnerPermission},
+	}
+
+	for _, t := range typeOfUsers {
+		defaultUsersOfType, err := g.listDefaultUsers(t.tipology)
 		if err != nil {
 			return 0, err
 		}
 
-		for _, user := range leadUsers {
-			g.addUserToGroup(subgroup.ID, user.ID, gitlabOwnerPermission)
+		for _, user := range defaultUsersOfType {
+			g.addUserToGroup(subgroup.ID, user.ID, t.permission)
 		}
 	}
 

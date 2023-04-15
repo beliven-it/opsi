@@ -2,7 +2,10 @@ package gitlab
 
 const gitlabOwnerPermission int = 50
 const gitlabMantainerPermission int = 40
-const gitlabDefaultGroupMember string = "default_group_member"
+const gitlabDeveloperPermission int = 30
+const gitlabDefaultGroupMemberMantainer string = "default_group_member_mantainer"
+const gitlabDefaultGroupMemberDeveloper string = "default_group_member_developer"
+const gitlabDefaultGroupMemberOwner string = "default_group_member_owner"
 
 type gitlab struct {
 	token  string
@@ -34,6 +37,11 @@ type gitlabCreateMirrorRequest struct {
 	Enabled               bool   `json:"enabled"`
 	URL                   string `json:"url"`
 	OnlyProtectedBranched bool   `json:"only_protected_branches"`
+}
+
+type gitlabDefaultUser struct {
+	tipology   string
+	permission int
 }
 
 type gitlabCreateSubgroupRequest struct {
