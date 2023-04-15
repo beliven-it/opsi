@@ -70,15 +70,14 @@ func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
 }
 
 func (g *gitlab) listDefaultUsers(tipology string) ([]gitlabUser, error) {
-	users, err := g.listUsers(nil)
+	users, err := g.listUsers(map[string]string{"per_page": "100"})
 	if err != nil {
 		return nil, err
 	}
 
-	leadNoteRgx := regexp.MustCompile(tipology)
 	leadUsers := []gitlabUser{}
 	for _, user := range users {
-		if leadNoteRgx.MatchString(user.Note) {
+		if strings.EqualFold(tipology, user.Note) {
 			leadUsers = append(leadUsers, user)
 		}
 	}
