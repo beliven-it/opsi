@@ -496,6 +496,7 @@ func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 		{tipology: gitlabDefaultGroupMemberDeveloper, permission: gitlabDeveloperPermission},
 		{tipology: gitlabDefaultGroupMemberMantainer, permission: gitlabMantainerPermission},
 		{tipology: gitlabDefaultGroupMemberOwner, permission: gitlabOwnerPermission},
+		{tipology: gitlabDefaultGroupMember, permission: gitlabOwnerPermission},
 	}
 
 	for _, t := range typeOfUsers {
