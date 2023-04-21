@@ -493,7 +493,7 @@ func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 	// provide some default users to the group
 	typeOfUsers := []gitlabDefaultUser{
 		{tipology: gitlabDefaultGroupMemberDeveloper, permission: gitlabDeveloperPermission},
-		{tipology: gitlabDefaultGroupMemberMantainer, permission: gitlabMantainerPermission},
+		{tipology: gitlabDefaultGroupMemberMaintainer, permission: gitlabMaintainerPermission},
 		{tipology: gitlabDefaultGroupMemberOwner, permission: gitlabOwnerPermission},
 		{tipology: gitlabDefaultGroupMember, permission: gitlabOwnerPermission},
 	}

@@ -1,9 +1,9 @@
 package gitlab
 
 const gitlabOwnerPermission int = 50
-const gitlabMantainerPermission int = 40
+const gitlabMaintainerPermission int = 40
 const gitlabDeveloperPermission int = 30
-const gitlabDefaultGroupMemberMantainer string = "default_group_member_mantainer"
+const gitlabDefaultGroupMemberMaintainer string = "default_group_member_maintainer"
 const gitlabDefaultGroupMemberDeveloper string = "default_group_member_developer"
 const gitlabDefaultGroupMemberOwner string = "default_group_member_owner"
 const gitlabDefaultGroupMember string = "default_group_member"
@@ -170,7 +170,7 @@ var defaultCleanUpPolicy = map[string]interface{}{
 var defaultProtectedTags = map[string]interface{}{
 	"allowed_to_create": []map[string]interface{}{
 		{
-			"access_level": gitlabMantainerPermission,
+			"access_level": gitlabMaintainerPermission,
 		},
 	},
 	"name": "*",
