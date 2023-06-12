@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // The request method perform an HTTP call into gitlab instance using
@@ -260,6 +261,10 @@ func (g *gitlab) createMirrorProject(name string, path string, groupID int) erro
 	if err != nil {
 		return err
 	}
+
+	// Sleep because sometimes the repo seems not completed yet.
+	// and the next call explode!!
+	time.Sleep(2 * time.Second)
 
 	endpoint := fmt.Sprintf("/projects/%d/protected_branches/main", mirrorProject.ID)
 	payload := map[string]interface{}{
