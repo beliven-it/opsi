@@ -1,5 +1,5 @@
 <br>
-<p align="center"><img src="./assets/logo.svg" /></p>
+<p align="center"><img width="400" src="./assets/logo.svg" /></p>
 <br>
 <p align="center">
 <img src="https://img.shields.io/github/go-mod/go-version/beliven-it/opsi?color=e75a39&style=for-the-badge" />
