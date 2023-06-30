@@ -228,13 +228,14 @@ func (g *gitlab) setupTag(projectID int) error {
 	return err
 }
 
-func (g *gitlab) createProject(name string, path string, groupID int, useMirrorRequest bool) (gitlabProjectResponse, error) {
+func (g *gitlab) createProject(name string, path string, groupID int, useMirrorRequest bool, useSharedRunners bool) (gitlabProjectResponse, error) {
 	var project gitlabProjectResponse
 
 	payload := defaultGitlabCreatePayload
 	payload.Name = name
 	payload.Path = path
 	payload.NamespaceID = groupID
+	payload.SharedRunnersEnabled = useSharedRunners
 
 	// Execute the request
 	var bodyResponse []byte
@@ -257,7 +258,7 @@ func (g *gitlab) createProject(name string, path string, groupID int, useMirrorR
 }
 
 func (g *gitlab) createMirrorProject(name string, path string, groupID int) error {
-	mirrorProject, err := g.createProject(name, path, groupID, true)
+	mirrorProject, err := g.createProject(name, path, groupID, true, false)
 	if err != nil {
 		return err
 	}
@@ -275,9 +276,9 @@ func (g *gitlab) createMirrorProject(name string, path string, groupID int) erro
 	return err
 }
 
-func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string, withMirror bool) (int, error) {
+func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string, withMirror bool, withSharedRunners bool) (int, error) {
 	// Create the project
-	project, err := g.createProject(name, path, groupID, false)
+	project, err := g.createProject(name, path, groupID, false, withSharedRunners)
 	if err != nil {
 		return 0, err
 	}
