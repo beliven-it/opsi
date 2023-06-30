@@ -18,7 +18,7 @@ type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
 	DeleteEnvs(string, string) error
-	CreateProject(string, string, int, string, bool) (int, error)
+	CreateProject(string, string, int, string, bool, bool) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
 	CreateGroup(string, string, string) (int, error)
 	BulkSettings(*chan string) error

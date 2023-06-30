@@ -33,6 +33,11 @@ var gitlabCreateProjectCmd = &cobra.Command{
   Create a project with name "Akkadian" enabling mirroring to another gitlab
   opsi gitlab create project Akkadian -m
 
+  ---
+
+  Create a project with name "Anonymous" disabling shared runners
+  opsi gitlab create project Anonymous -r
+
 	`,
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -44,6 +49,7 @@ var gitlabCreateProjectCmd = &cobra.Command{
 		pathname, _ := cmd.Flags().GetString("path")
 		defaultBranch, _ := cmd.Flags().GetString("branch-default")
 		mirror, _ := cmd.Flags().GetBool("mirror")
+		sharedRunners, _ := cmd.Flags().GetBool("sharedrunners")
 
 		// Slugify the name if the pathname flag
 		// for the project is not provided
@@ -52,7 +58,15 @@ var gitlabCreateProjectCmd = &cobra.Command{
 		}
 
 		// Create the project
-		projectID, err := gitlab.CreateProject(name, pathname, group, defaultBranch, mirror)
+		projectID, err := gitlab.CreateProject(
+			name,
+			pathname,
+			group,
+			defaultBranch,
+			mirror,
+			sharedRunners,
+		)
+
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -68,6 +82,7 @@ func init() {
 	gitlabCreateProjectCmd.Flags().StringP("path", "p", "", "the path for the project. This flag is useful if you don't want to use the project name for the path")
 	gitlabCreateProjectCmd.Flags().StringP("branch-default", "b", "main", "the default main branch. Possible values are master or main")
 	gitlabCreateProjectCmd.Flags().BoolP("mirror", "m", false, "Enable or disable the mirroring repo. Default is false")
+	gitlabCreateProjectCmd.Flags().BoolP("sharedrunners", "r", false, "Enable or disable the shared runners. Default is true")
 
 	// Mark group as required
 	gitlabCreateProjectCmd.MarkFlagRequired("group")

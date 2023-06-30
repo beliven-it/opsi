@@ -1,10 +1,26 @@
-# OPSI
+<br>
+<p align="center"><img src="./assets/logo.svg" /></p>
+<br>
+<p align="center">
+<img src="https://img.shields.io/github/go-mod/go-version/beliven-it/opsi?color=e75a39&style=for-the-badge" />
+<img src="https://img.shields.io/github/v/release/beliven-it/opsi?color=e75a39&style=for-the-badge" />
+<img src="https://img.shields.io/github/license/beliven-it/opsi?color=e75a39&style=for-the-badge" />
+</p>
+<p align="center">
+<img src="https://img.shields.io/github/issues-pr/beliven-it/opsi?color=e75a39&style=for-the-badge" />
+<img src="https://img.shields.io/github/issues/beliven-it/opsi?color=e75a39&style=for-the-badge" />
+<img src="https://img.shields.io/github/contributors/beliven-it/opsi?color=e75a39&style=for-the-badge" />
+</p>
+
+<br><br>
+<br><br>
 
 > All-in-one CLI for Beliven Ops daily usage!
 
 The aim of this tool is to group all the daily and most used commands for OPS activities into a single tool.
 
 <br>
+
 
 This tool interact with some entities:
 
