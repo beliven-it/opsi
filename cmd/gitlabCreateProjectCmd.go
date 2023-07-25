@@ -38,6 +38,11 @@ var gitlabCreateProjectCmd = &cobra.Command{
   Create a project with name "Anonymous" disabling shared runners
   opsi gitlab create project Anonymous -r
 
+  ---
+
+  Create a project with visibility "internal"
+  opsi gitlab create project Anonymous -i internal
+
 	`,
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -50,6 +55,7 @@ var gitlabCreateProjectCmd = &cobra.Command{
 		defaultBranch, _ := cmd.Flags().GetString("branch-default")
 		mirror, _ := cmd.Flags().GetBool("mirror")
 		sharedRunners, _ := cmd.Flags().GetBool("sharedrunners")
+		visibility, _ := cmd.Flags().GetString("visibility")
 
 		// Slugify the name if the pathname flag
 		// for the project is not provided
@@ -65,6 +71,7 @@ var gitlabCreateProjectCmd = &cobra.Command{
 			defaultBranch,
 			mirror,
 			sharedRunners,
+			visibility,
 		)
 
 		if err != nil {
@@ -83,6 +90,7 @@ func init() {
 	gitlabCreateProjectCmd.Flags().StringP("branch-default", "b", "main", "the default main branch. Possible values are master or main")
 	gitlabCreateProjectCmd.Flags().BoolP("mirror", "m", false, "Enable or disable the mirroring repo. Default is false")
 	gitlabCreateProjectCmd.Flags().BoolP("sharedrunners", "r", false, "Enable or disable the shared runners. Default is true")
+	gitlabCreateProjectCmd.Flags().StringP("visibility", "i", "", "Set the visibility of the project. Allowed values are private, public, internal")
 
 	// Mark group as required
 	gitlabCreateProjectCmd.MarkFlagRequired("group")

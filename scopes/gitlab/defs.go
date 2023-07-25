@@ -18,7 +18,7 @@ type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
 	DeleteEnvs(string, string) error
-	CreateProject(string, string, int, string, bool, bool) (int, error)
+	CreateProject(string, string, int, string, bool, bool, string) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
 	CreateGroup(string, string, string) (int, error)
 	BulkSettings(*chan string) error
@@ -64,6 +64,7 @@ type gitlabSubgroupResponse struct {
 type gitlabCreateProjectRequest struct {
 	Name                         string `json:"name"`
 	Path                         string `json:"path"`
+	Visibility                   string `json:"visibility"`
 	NamespaceID                  int    `json:"namespace_id"`
 	MergeMethod                  string `json:"merge_method"`
 	AnalyticsAccessLevel         string `json:"analytics_access_level"`
@@ -131,6 +132,7 @@ type gitlabCreateEnvRequest struct {
 
 var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
 	MergeMethod:                  "ff",
+	Visibility:                   "private",
 	AnalyticsAccessLevel:         "disabled",
 	SecurityAndComplianceEnabled: false,
 	IssuesEnabled:                false,
