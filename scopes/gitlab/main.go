@@ -228,10 +228,11 @@ func (g *gitlab) setupTag(projectID int) error {
 	return err
 }
 
-func (g *gitlab) createProject(name string, path string, groupID int, useMirrorRequest bool, useSharedRunners bool) (gitlabProjectResponse, error) {
+func (g *gitlab) createProject(name string, path string, groupID int, useMirrorRequest bool, useSharedRunners bool, visibility string) (gitlabProjectResponse, error) {
 	var project gitlabProjectResponse
 
 	payload := defaultGitlabCreatePayload
+	payload.Visibility = visibility
 	payload.Name = name
 	payload.Path = path
 	payload.NamespaceID = groupID
@@ -258,7 +259,7 @@ func (g *gitlab) createProject(name string, path string, groupID int, useMirrorR
 }
 
 func (g *gitlab) createMirrorProject(name string, path string, groupID int) error {
-	mirrorProject, err := g.createProject(name, path, groupID, true, false)
+	mirrorProject, err := g.createProject(name, path, groupID, true, false, "private")
 	if err != nil {
 		return err
 	}
@@ -276,9 +277,19 @@ func (g *gitlab) createMirrorProject(name string, path string, groupID int) erro
 	return err
 }
 
-func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string, withMirror bool, withSharedRunners bool) (int, error) {
+func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string, withMirror bool, withSharedRunners bool, visibility string) (int, error) {
+	// Inherit some attributes from the group
+	groupDetail, err := g.viewGroup(groupID)
+	if err != nil {
+		return 0, err
+	}
+
+	if visibility == "" {
+		visibility = groupDetail.Visibility
+	}
+
 	// Create the project
-	project, err := g.createProject(name, path, groupID, false, withSharedRunners)
+	project, err := g.createProject(name, path, groupID, false, withSharedRunners, visibility)
 	if err != nil {
 		return 0, err
 	}
