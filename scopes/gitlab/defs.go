@@ -18,7 +18,7 @@ type Gitlab interface {
 	CreateEnvs(string, string, string) error
 	ListEnvs(string, string) error
 	DeleteEnvs(string, string) error
-	CreateProject(string, string, int, string, bool, bool, string) (int, error)
+	CreateProject(ProjectRequest) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
 	CreateGroup(string, string, string) (int, error)
 	BulkSettings(*chan string) error
@@ -62,22 +62,35 @@ type gitlabSubgroupResponse struct {
 }
 
 type gitlabCreateProjectRequest struct {
-	Name                         string `json:"name"`
-	Path                         string `json:"path"`
-	Visibility                   string `json:"visibility"`
-	NamespaceID                  int    `json:"namespace_id"`
-	MergeMethod                  string `json:"merge_method"`
-	AnalyticsAccessLevel         string `json:"analytics_access_level"`
-	SecurityAndComplianceEnabled bool   `json:"security_and_compliance_enabled"`
-	IssuesEnabled                bool   `json:"issues_enabled"`
-	ForkingAccessLevel           string `json:"forking_access_level"`
-	LFSEnabled                   bool   `json:"lfs_enabled"`
-	WikiEnabled                  bool   `json:"wiki_enabled"`
-	PagesAccessLevel             string `json:"pages_access_level"`
-	OperationsAccessLevel        string `json:"operations_access_level"`
-	SharedRunnersEnabled         bool   `json:"shared_runners_enabled"`
-	InitializeWithReadME         bool   `json:"initialize_with_readme"`
-	SquashOption                 string `json:"squash_option"`
+	Name                             string `json:"name"`
+	Path                             string `json:"path"`
+	Visibility                       string `json:"visibility"`
+	NamespaceID                      int    `json:"namespace_id"`
+	MergeMethod                      string `json:"merge_method"`
+	LFSEnabled                       bool   `json:"lfs_enabled"`
+	SharedRunnersEnabled             bool   `json:"shared_runners_enabled"`
+	InitializeWithReadME             bool   `json:"initialize_with_readme"`
+	SquashOption                     string `json:"squash_option"`
+	PackagesEnabled                  bool   `json:"packages_enabled"`
+	MirrorTriggerBuilds              bool   `json:"mirror_trigger_builds"`
+	BuildsAccessLevel                string `json:"builds_access_level"`
+	AnalyticsAccessLevel             string `json:"analytics_access_level"`
+	PagesAccessLevel                 string `json:"pages_access_level"`
+	ContainerRegistryAccessLevel     string `json:"container_registry_access_level"`
+	OperationsAccessLevel            string `json:"operations_access_level"`
+	IssuesAccessLevel                string `json:"issues_access_level"`
+	MergeRequestAccessLevel          string `json:"merge_request_access_level"`
+	ReleasesAccessLevel              string `json:"releases_access_level"`
+	EnvironmentsAccessLevel          string `json:"environments_access_level"`
+	FeatureFlagsAccessLevel          string `json:"feature_flags_access_level"`
+	MonitorAccessLevel               string `json:"monitor_access_level"`
+	RepositoryAccessLevel            string `json:"repository_access_level"`
+	RequirementsAccessLevel          string `json:"requirements_access_level"`
+	InfrastrucureAccessLevel         string `json:"infrastructure_access_level"`
+	SecurityAndComplianceAccessLevel string `json:"security_and_compliance_access_level"`
+	SnippetAccessLevel               string `json:"snippet_access_level"`
+	WikiAccessLevel                  string `json:"wiki_access_level"`
+	ForkingAccessLevel               string `json:"forking_access_level"`
 }
 
 type gitlabAddUserToGroupRequest struct {
@@ -130,21 +143,63 @@ type gitlabCreateEnvRequest struct {
 	Protected        bool   `json:"protected"`
 }
 
-var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
-	MergeMethod:                  "ff",
-	Visibility:                   "private",
-	AnalyticsAccessLevel:         "disabled",
-	SecurityAndComplianceEnabled: false,
-	IssuesEnabled:                false,
-	ForkingAccessLevel:           "disabled",
-	LFSEnabled:                   false,
-	WikiEnabled:                  false,
-	PagesAccessLevel:             "disabled",
-	OperationsAccessLevel:        "disabled",
-	SharedRunnersEnabled:         false,
-	InitializeWithReadME:         true,
-	SquashOption:                 "never",
+type ProjectRequest struct {
+	Name          string
+	Path          string
+	Visibility    string
+	DefaultBranch string
+	Mirror        bool
+	SharedRunners bool
+	Group         int
 }
+
+var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
+	MergeMethod:                      "ff",
+	Visibility:                       "private",
+	LFSEnabled:                       false,
+	SharedRunnersEnabled:             false,
+	InitializeWithReadME:             true,
+	SquashOption:                     "never",
+	PackagesEnabled:                  true,
+	IssuesAccessLevel:                "disabled",
+	PagesAccessLevel:                 "disabled",
+	OperationsAccessLevel:            "disabled",
+	AnalyticsAccessLevel:             "disabled",
+	SecurityAndComplianceAccessLevel: "disabled",
+	SnippetAccessLevel:               "enabled",
+	WikiAccessLevel:                  "disabled",
+	ForkingAccessLevel:               "disabled",
+}
+
+var defaultGitlabMirrorCreatePayload = gitlabCreateProjectRequest{
+	MergeMethod:                      "ff",
+	Visibility:                       "private",
+	LFSEnabled:                       false,
+	SharedRunnersEnabled:             false,
+	InitializeWithReadME:             true,
+	SquashOption:                     "never",
+	PackagesEnabled:                  false,
+	BuildsAccessLevel:                "disabled",
+	AnalyticsAccessLevel:             "disabled",
+	PagesAccessLevel:                 "disabled",
+	ContainerRegistryAccessLevel:     "disabled",
+	OperationsAccessLevel:            "disabled",
+	IssuesAccessLevel:                "disabled",
+	MergeRequestAccessLevel:          "disabled",
+	ReleasesAccessLevel:              "disabled",
+	EnvironmentsAccessLevel:          "disabled",
+	FeatureFlagsAccessLevel:          "disabled",
+	MonitorAccessLevel:               "disabled",
+	RepositoryAccessLevel:            "enabled",
+	RequirementsAccessLevel:          "disabled",
+	InfrastrucureAccessLevel:         "disabled",
+	SecurityAndComplianceAccessLevel: "disabled",
+	SnippetAccessLevel:               "disabled",
+	WikiAccessLevel:                  "disabled",
+	ForkingAccessLevel:               "disabled",
+}
+
+const projectEndpoint = "/projects"
 
 var defaultProjectDevelopSettings = gitlabSetupBranchRequest{
 	Name:             "develop",
@@ -177,3 +232,6 @@ var defaultProtectedTags = map[string]interface{}{
 	},
 	"name": "*",
 }
+
+const messageSetDefaultBranch = "Set default branch %s for project #%d"
+const messageErrorSetDefaultBranch = "Error on set default branch %s for project #%d: %s"
