@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	gl "opsi/scopes/gitlab"
+
 	slugify "github.com/mozillazg/go-slugify"
 	"github.com/spf13/cobra"
 )
@@ -63,16 +65,19 @@ var gitlabCreateProjectCmd = &cobra.Command{
 			pathname = slugify.Slugify(name)
 		}
 
+		// Prepare the payload
+		payload := gl.ProjectRequest{
+			Name:          name,
+			Path:          pathname,
+			Visibility:    visibility,
+			DefaultBranch: defaultBranch,
+			Mirror:        mirror,
+			SharedRunners: sharedRunners,
+			Group:         group,
+		}
+
 		// Create the project
-		projectID, err := gitlab.CreateProject(
-			name,
-			pathname,
-			group,
-			defaultBranch,
-			mirror,
-			sharedRunners,
-			visibility,
-		)
+		projectID, err := gitlab.CreateProject(payload)
 
 		if err != nil {
 			fmt.Println(err)

@@ -228,27 +228,17 @@ func (g *gitlab) setupTag(projectID int) error {
 	return err
 }
 
-func (g *gitlab) createProject(name string, path string, groupID int, useMirrorRequest bool, useSharedRunners bool, visibility string) (gitlabProjectResponse, error) {
+func (g *gitlab) createProject(options ProjectRequest) (gitlabProjectResponse, error) {
 	var project gitlabProjectResponse
 
 	payload := defaultGitlabCreatePayload
-	payload.Visibility = visibility
-	payload.Name = name
-	payload.Path = path
-	payload.NamespaceID = groupID
-	payload.SharedRunnersEnabled = useSharedRunners
+	payload.Visibility = options.Visibility
+	payload.Name = options.Name
+	payload.Path = options.Path
+	payload.NamespaceID = options.Group
+	payload.SharedRunnersEnabled = options.SharedRunners
 
-	// Execute the request
-	var bodyResponse []byte
-	var err error
-	var endpoint = "/projects"
-
-	if useMirrorRequest {
-		bodyResponse, err = g.mirrorRequest("POST", endpoint, payload, nil)
-	} else {
-		bodyResponse, err = g.request("POST", endpoint, payload, nil)
-	}
-
+	bodyResponse, err := g.request("POST", projectEndpoint, payload, nil)
 	if err != nil {
 		return project, err
 	}
@@ -258,8 +248,32 @@ func (g *gitlab) createProject(name string, path string, groupID int, useMirrorR
 	return project, err
 }
 
-func (g *gitlab) createMirrorProject(name string, path string, groupID int) error {
-	mirrorProject, err := g.createProject(name, path, groupID, true, false, "private")
+func (g *gitlab) createMirrorProject(options ProjectRequest) (gitlabProjectResponse, error) {
+	var project gitlabProjectResponse
+
+	payload := defaultGitlabMirrorCreatePayload
+	payload.Name = options.Name
+	payload.Path = options.Path
+	payload.NamespaceID = options.Group
+
+	bodyResponse, err := g.mirrorRequest("POST", projectEndpoint, payload, nil)
+	if err != nil {
+		return project, err
+	}
+
+	// Read the response
+	err = json.Unmarshal(bodyResponse, &project)
+	return project, err
+}
+
+func (g *gitlab) setupMirrorProject(name string, path string, groupID int) error {
+	mirrorRequest := ProjectRequest{
+		Name:  name,
+		Path:  path,
+		Group: groupID,
+	}
+
+	mirrorProject, err := g.createMirrorProject(mirrorRequest)
 	if err != nil {
 		return err
 	}
@@ -277,19 +291,21 @@ func (g *gitlab) createMirrorProject(name string, path string, groupID int) erro
 	return err
 }
 
-func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBranch string, withMirror bool, withSharedRunners bool, visibility string) (int, error) {
-	// Inherit some attributes from the group
-	groupDetail, err := g.viewGroup(groupID)
+func (g *gitlab) CreateProject(options ProjectRequest) (int, error) {
+	// Take the group informations
+	groupDetail, err := g.viewGroup(options.Group)
 	if err != nil {
 		return 0, err
 	}
 
-	if visibility == "" {
-		visibility = groupDetail.Visibility
+	// Inherit some attributes from the group
+	if options.Visibility == "" {
+		options.Visibility = groupDetail.Visibility
 	}
 
 	// Create the project
-	project, err := g.createProject(name, path, groupID, false, withSharedRunners, visibility)
+	projectRequest := options
+	project, err := g.createProject(projectRequest)
 	if err != nil {
 		return 0, err
 	}
@@ -300,7 +316,7 @@ func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBra
 	branches := []map[string]string{
 		{
 			"branch": "staging",
-			"ref":    defaultBranch,
+			"ref":    options.DefaultBranch,
 		},
 		{
 			"branch": "develop",
@@ -317,7 +333,7 @@ func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBra
 	}
 
 	// Set the default branch of the project
-	err = g.setDefaultBranch(project.ID, defaultBranch)
+	err = g.setDefaultBranch(project.ID, options.DefaultBranch)
 	if err != nil {
 		return 0, err
 	}
@@ -327,7 +343,7 @@ func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBra
 		defaultProjectDevelopSettings,
 		defaultProjectStagingSettings,
 		{
-			Name:             defaultBranch,
+			Name:             options.DefaultBranch,
 			PushAccessLevel:  0,
 			MergeAccessLevel: 40,
 		},
@@ -353,14 +369,14 @@ func (g *gitlab) CreateProject(name string, path string, groupID int, defaultBra
 	}
 
 	// If mirror is enables create the mirror project
-	if withMirror {
-		err = g.createMirrorProject(name, path, g.mirror.GroupID)
+	if options.Mirror {
+		err = g.setupMirrorProject(options.Name, options.Path, g.mirror.GroupID)
 		if err != nil {
 			return 0, err
 		}
 
 		// Setup mirror project
-		g.enableMirrorForProject(project.ID, path)
+		g.enableMirrorForProject(project.ID, options.Path)
 	}
 
 	return project.ID, nil
@@ -664,23 +680,23 @@ func (g *gitlab) BulkSettings(channel *chan string) error {
 			case 7, 5, 4:
 				err = g.setDefaultBranch(projectID, defaultBranch)
 				if err != nil {
-					*channel <- fmt.Sprintf("Error on set default branch %s for project #%d: %s", defaultBranch, projectID, err.Error())
+					*channel <- fmt.Sprintf(messageErrorSetDefaultBranch, defaultBranch, projectID, err.Error())
 				} else {
-					*channel <- fmt.Sprintf("Set default branch %s for project #%d", defaultBranch, projectID)
+					*channel <- fmt.Sprintf(messageSetDefaultBranch, defaultBranch, projectID)
 				}
 			case 6, 3:
 				err = g.setDefaultBranch(projectID, "staging")
 				if err != nil {
-					*channel <- fmt.Sprintf("Error on set default branch %s for project #%d: %s", "staging", projectID, err.Error())
+					*channel <- fmt.Sprintf(messageErrorSetDefaultBranch, "staging", projectID, err.Error())
 				} else {
-					*channel <- fmt.Sprintf("Set default branch %s for project #%d", "staging", projectID)
+					*channel <- fmt.Sprintf(messageSetDefaultBranch, "staging", projectID)
 				}
 			case 1:
 				err = g.setDefaultBranch(projectID, "develop")
 				if err != nil {
-					*channel <- fmt.Sprintf("Error on set default branch %s for project #%d: %s", "develop", projectID, err.Error())
+					*channel <- fmt.Sprintf(messageErrorSetDefaultBranch, "develop", projectID, err.Error())
 				} else {
-					*channel <- fmt.Sprintf("Set default branch %s for project #%d", "develop", projectID)
+					*channel <- fmt.Sprintf(messageSetDefaultBranch, "develop", projectID)
 				}
 			}
 
