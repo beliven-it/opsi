@@ -88,9 +88,13 @@ type gitlabCreateProjectRequest struct {
 	RequirementsAccessLevel          string `json:"requirements_access_level"`
 	InfrastrucureAccessLevel         string `json:"infrastructure_access_level"`
 	SecurityAndComplianceAccessLevel string `json:"security_and_compliance_access_level"`
-	SnippetAccessLevel               string `json:"snippet_access_level"`
+	SnippetsAccessLevel              string `json:"snippets_access_level"`
 	WikiAccessLevel                  string `json:"wiki_access_level"`
 	ForkingAccessLevel               string `json:"forking_access_level"`
+	ModelExperimentAccessLevel       string `json:"model_experiments_access_level"`
+	PackageRegistryAccessLevel       string `json:"package_registry_access_level"`
+	PackageRegistryEnabled           bool   `json:"package_registry_enabled"`
+	OnlyAllowMergeIfPipelineSucceeds bool   `json:"only_allow_merge_if_pipeline_succeeds"`
 }
 
 type gitlabAddUserToGroupRequest struct {
@@ -161,14 +165,28 @@ var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
 	InitializeWithReadME:             true,
 	SquashOption:                     "never",
 	PackagesEnabled:                  true,
-	IssuesAccessLevel:                "disabled",
+	BuildsAccessLevel:                "enabled",
+	AnalyticsAccessLevel:             "enabled",
 	PagesAccessLevel:                 "disabled",
-	OperationsAccessLevel:            "disabled",
-	AnalyticsAccessLevel:             "disabled",
+	ContainerRegistryAccessLevel:     "enabled",
+	OperationsAccessLevel:            "enabled",
+	IssuesAccessLevel:                "disabled",
+	MergeRequestAccessLevel:          "enabled",
+	ReleasesAccessLevel:              "enabled",
+	EnvironmentsAccessLevel:          "enabled",
+	FeatureFlagsAccessLevel:          "enabled",
+	MonitorAccessLevel:               "enabled",
+	RepositoryAccessLevel:            "enabled",
+	RequirementsAccessLevel:          "disabled",
+	InfrastrucureAccessLevel:         "enabled",
 	SecurityAndComplianceAccessLevel: "disabled",
-	SnippetAccessLevel:               "enabled",
+	SnippetsAccessLevel:              "enabled",
 	WikiAccessLevel:                  "disabled",
 	ForkingAccessLevel:               "disabled",
+	ModelExperimentAccessLevel:       "disabled",
+	PackageRegistryAccessLevel:       "enabled",
+	PackageRegistryEnabled:           true,
+	OnlyAllowMergeIfPipelineSucceeds: true,
 }
 
 var defaultGitlabMirrorCreatePayload = gitlabCreateProjectRequest{
@@ -194,9 +212,13 @@ var defaultGitlabMirrorCreatePayload = gitlabCreateProjectRequest{
 	RequirementsAccessLevel:          "disabled",
 	InfrastrucureAccessLevel:         "disabled",
 	SecurityAndComplianceAccessLevel: "disabled",
-	SnippetAccessLevel:               "disabled",
+	SnippetsAccessLevel:              "disabled",
 	WikiAccessLevel:                  "disabled",
 	ForkingAccessLevel:               "disabled",
+	ModelExperimentAccessLevel:       "disabled",
+	PackageRegistryAccessLevel:       "disabled",
+	PackageRegistryEnabled:           false,
+	OnlyAllowMergeIfPipelineSucceeds: false,
 }
 
 const projectEndpoint = "/projects"
