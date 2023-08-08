@@ -186,7 +186,7 @@ var defaultGitlabCreatePayload = gitlabCreateProjectRequest{
 	ModelExperimentAccessLevel:       "disabled",
 	PackageRegistryAccessLevel:       "enabled",
 	PackageRegistryEnabled:           true,
-	OnlyAllowMergeIfPipelineSucceeds: true,
+	OnlyAllowMergeIfPipelineSucceeds: false,
 }
 
 var defaultGitlabMirrorCreatePayload = gitlabCreateProjectRequest{
