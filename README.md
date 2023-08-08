@@ -44,7 +44,7 @@ gitlab:
   api_url: "https://company.gitlab.com/api/v4"
   token: "<GITLAB_TOKEN>"
   mirror:
-    url: "https://gitlab.com/api/v4"
+    api_url: "https://gitlab.com/api/v4"
     group_id: "<GITLAB_MIRROR_GROUP_ID>"
     group_path: "gitlab.com/<GROUP_NAME>"  
     username: "<GITLAB_MIRROR_USERNAME>"
