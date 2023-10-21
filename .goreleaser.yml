@@ -6,7 +6,7 @@ builds:
 brews:
   -
     name: opsi@{{.Version}}
-    tap:
+    repository:
       owner: beliven-it
       name: homebrew-tap
     folder: Formula
@@ -18,7 +18,7 @@ brews:
     license: "MIT"
   -
     name: opsi
-    tap:
+    repository:
       owner: beliven-it
       name: homebrew-tap
     folder: Formula
