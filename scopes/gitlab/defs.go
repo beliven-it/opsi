@@ -23,6 +23,7 @@ type Gitlab interface {
 	CreateGroup(string, string, string) (int, error)
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
+	UpdateMirroring() error
 }
 
 type GitlabMirrorOptions struct {
@@ -38,6 +39,12 @@ type gitlabCreateMirrorRequest struct {
 	Enabled               bool   `json:"enabled"`
 	URL                   string `json:"url"`
 	OnlyProtectedBranched bool   `json:"only_protected_branches"`
+}
+
+type gitlabMirrorResponse struct {
+	ID                   int    `json:"id"`
+	Enabled           	 bool 	`json:"enabled"`
+	Url					 string `json:"url"`
 }
 
 type gitlabDefaultUser struct {

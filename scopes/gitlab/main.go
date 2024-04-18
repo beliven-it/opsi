@@ -55,6 +55,103 @@ func (g *gitlab) enableMirrorForProject(projectID int, projectName string) ([]by
 	return g.request("POST", endpoint, payload, nil)
 }
 
+func (g *gitlab) UpdateMirroring() error {
+	//Retrieve projects list
+	projectsList, err := g.listProjects()
+	
+	if err != nil {
+		return err
+	}
+
+	var projectsIDWithMirroring []int
+	var mirroringProjects []gitlabMirrorResponse
+
+	// Filter repositories with mirroring enabled
+	for _, project := range projectsList {
+		mirroringProject, hasMirroring, err := g.checkMirroringExistence(project.ID)
+		if err != nil {
+			return err
+		}
+		if hasMirroring {
+			projectsIDWithMirroring = append(projectsIDWithMirroring, project.ID)
+			mirroringProjects = append(mirroringProjects, mirroringProject)
+		}
+	}
+
+	//Recreate mirroring
+	for i := 0; i < len(projectsIDWithMirroring) && i < len(mirroringProjects); i++ {
+		//Delete current mirroring
+		projectID := projectsIDWithMirroring[i]
+		mirroringProjectID := mirroringProjects[i].ID
+		err := g.deleteMirroring(projectID,mirroringProjectID)
+
+		if err != nil {
+			return err
+		}
+		// //Create new mirroring
+		patternUrl := `\/([^\/]+)\.git$`
+		re := regexp.MustCompile(patternUrl)
+		matches := re.FindStringSubmatch(mirroringProjects[i].Url)
+		projectName := matches[1]
+
+		_, err = g.enableMirrorForProject(projectID, projectName)
+		if err != nil {
+			fmt.Printf("Error when updating mirroring for %s: %v\n", projectName, err)
+		}
+		fmt.Println("Mirroring updated for", projectName)
+	}
+
+	// Return the error
+	return err
+}
+
+func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
+	response, err := g.request("GET", "/projects", nil, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var listOfProjects []gitlabProjectResponse
+	err = json.Unmarshal(response, &listOfProjects)
+
+	return listOfProjects, err
+}
+
+func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, bool, error) {
+	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors", projectID)
+	response, err := g.request("GET", endpoint, nil, nil)
+
+	if err != nil {
+		return gitlabMirrorResponse{}, false, err
+	}
+
+	// Parse the response to check if mirroring is enabled
+	// Assuming the response contains JSON with a field indicating mirroring status
+	var projectRemoteMirrors []gitlabMirrorResponse
+	err = json.Unmarshal(response, &projectRemoteMirrors)
+	if err != nil {
+		return gitlabMirrorResponse{}, false, err
+	}
+
+	// Check if the project has at least one mirroring enabled
+	for _, projectRemoteMirror := range projectRemoteMirrors {
+		if projectRemoteMirror.Enabled {
+			return projectRemoteMirror, true, nil
+		}
+	}
+	// If no mirror response has mirroring enabled, return false
+	return gitlabMirrorResponse{}, false, nil
+}
+
+func (g *gitlab) deleteMirroring(projectID int, mirroringProjectID int) (error){
+	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors/%d", projectID, mirroringProjectID)
+	_, err := g.request("DELETE", endpoint, nil, nil)
+
+	return err
+}
+
+
 func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
 	// Take the users
 	response, err := g.request("GET", "/users", nil, filters)
