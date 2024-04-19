@@ -58,7 +58,7 @@ func (g *gitlab) enableMirrorForProject(projectID int, projectName string) ([]by
 func (g *gitlab) UpdateMirroring() error {
 	//Retrieve projects list
 	projectsList, err := g.listProjects()
-	
+
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (g *gitlab) UpdateMirroring() error {
 		//Delete current mirroring
 		projectID := projectsIDWithMirroring[i]
 		mirroringProjectID := mirroringProjects[i].ID
-		err := g.deleteMirroring(projectID,mirroringProjectID)
+		err := g.deleteMirroring(projectID, mirroringProjectID)
 
 		if err != nil {
 			return err
@@ -106,16 +106,36 @@ func (g *gitlab) UpdateMirroring() error {
 }
 
 func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
-	response, err := g.request("GET", "/projects", nil, nil)
+	fmt.Println("Retrieving projects list...")
+	var allProjects []gitlabProjectResponse
+	nextPage := 1
+	perPage := 100
 
-	if err != nil {
-		return nil, err
+	for {
+		// Construct the URL with pagination parameters
+		endpoint := fmt.Sprintf("/projects?per_page=%d&page=%d&simple=true", perPage, nextPage)
+
+		// Make the request
+		response, err := g.request("GET", endpoint, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse the response and append projects to the list
+		var projects []gitlabProjectResponse
+		if err := json.Unmarshal(response, &projects); err != nil {
+			return nil, err
+		}
+		allProjects = append(allProjects, projects...)
+
+		// Check if there are more pages
+		nextPage++
+		if len(projects) < perPage {
+			break // No more pages
+		}
 	}
 
-	var listOfProjects []gitlabProjectResponse
-	err = json.Unmarshal(response, &listOfProjects)
-
-	return listOfProjects, err
+	return allProjects, nil
 }
 
 func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, bool, error) {
@@ -144,13 +164,12 @@ func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, b
 	return gitlabMirrorResponse{}, false, nil
 }
 
-func (g *gitlab) deleteMirroring(projectID int, mirroringProjectID int) (error){
+func (g *gitlab) deleteMirroring(projectID int, mirroringProjectID int) error {
 	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors/%d", projectID, mirroringProjectID)
 	_, err := g.request("DELETE", endpoint, nil, nil)
 
 	return err
 }
-
 
 func (g *gitlab) listUsers(filters map[string]string) ([]gitlabUser, error) {
 	// Take the users
