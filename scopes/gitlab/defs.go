@@ -24,6 +24,7 @@ type Gitlab interface {
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
 	UpdateMirroring() error
+	UpdateCleanUpPolicy(string) error
 }
 
 type GitlabMirrorOptions struct {
@@ -42,9 +43,9 @@ type gitlabCreateMirrorRequest struct {
 }
 
 type gitlabMirrorResponse struct {
-	ID                   int    `json:"id"`
-	Enabled           	 bool 	`json:"enabled"`
-	Url					 string `json:"url"`
+	ID      int    `json:"id"`
+	Enabled bool   `json:"enabled"`
+	Url     string `json:"url"`
 }
 
 type gitlabDefaultUser struct {
@@ -244,12 +245,12 @@ var defaultProjectStagingSettings = gitlabSetupBranchRequest{
 
 var defaultCleanUpPolicy = map[string]interface{}{
 	"container_expiration_policy_attributes": map[string]interface{}{
-		"cadence":         "1month",
+		"cadence":         "7d",
 		"enabled":         true,
 		"keep_n":          1,
-		"older_than":      "14d",
+		"older_than":      "7d",
 		"name_regex":      ".*",
-		"name_regex_keep": ".*-main",
+		"name_regex_keep": ".*",
 	},
 }
 

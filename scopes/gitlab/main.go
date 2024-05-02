@@ -330,6 +330,17 @@ func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
 	return err
 }
 
+func (g *gitlab) UpdateCleanUpPolicy(projectID string) error {
+	id, err := strconv.Atoi(projectID)
+
+	if err != nil {
+		return err
+	}
+
+	err = g.applyCleanUpPolicy(id)
+	return err
+}
+
 // Apply a cleanUP policy on gitlab project.
 func (g *gitlab) applyCleanUpPolicy(projectID int) error {
 	_, err := g.request("PUT", fmt.Sprintf("/projects/%d", projectID), defaultCleanUpPolicy, nil)
