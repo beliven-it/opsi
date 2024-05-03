@@ -27,8 +27,6 @@ var gitlabUpdateCleanUpPolicyCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		fmt.Println("Updated cleanup policy of the project with ID", projectID)
 	},
 }
 

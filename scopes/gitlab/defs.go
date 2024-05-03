@@ -9,9 +9,10 @@ const gitlabDefaultGroupMemberOwner string = "default_group_member_owner"
 const gitlabDefaultGroupMember string = "default_group_member"
 
 type gitlab struct {
-	token  string
-	apiURL string
-	mirror GitlabMirrorOptions
+	token      string
+	apiURL     string
+	mirror     GitlabMirrorOptions
+	exclusions GitlabExclusionsConfig
 }
 
 type Gitlab interface {
@@ -34,6 +35,10 @@ type GitlabMirrorOptions struct {
 	Username  string `mapstructure:"username"`
 	Password  string `mapstructure:"password"`
 	GroupID   int    `mapstructure:"group_id"`
+}
+
+type GitlabExclusionsConfig struct {
+	CleanupPolicies []int `mapstructure:"cleanup_policies"`
 }
 
 type gitlabCreateMirrorRequest struct {

@@ -341,9 +341,25 @@ func (g *gitlab) UpdateCleanUpPolicy(projectID string) error {
 	return err
 }
 
+// Function to check if an array contains an element
+func (g *gitlab) contains(array []int, item int) (bool, error) {
+	for i := 0; i < len(array); i++ {
+		// check
+		if array[i] == item {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // Apply a cleanUP policy on gitlab project.
 func (g *gitlab) applyCleanUpPolicy(projectID int) error {
-	_, err := g.request("PUT", fmt.Sprintf("/projects/%d", projectID), defaultCleanUpPolicy, nil)
+	isExcluded, err := g.contains(g.exclusions.CleanupPolicies, projectID)
+	if !isExcluded {
+		_, err = g.request("PUT", fmt.Sprintf("/projects/%d", projectID), defaultCleanUpPolicy, nil)
+	} else {
+		fmt.Println("Cleanup policy not updated for the project with ID", projectID)
+	}
 
 	return err
 }
@@ -903,10 +919,11 @@ func (g *gitlab) Deprovionioning(username string) error {
 	return nil
 }
 
-func NewGitlab(apiURL string, token string, mirror GitlabMirrorOptions) Gitlab {
+func NewGitlab(apiURL string, token string, mirror GitlabMirrorOptions, exclusions GitlabExclusionsConfig) Gitlab {
 	return &gitlab{
-		apiURL: apiURL,
-		token:  token,
-		mirror: mirror,
+		apiURL:     apiURL,
+		token:      token,
+		mirror:     mirror,
+		exclusions: exclusions,
 	}
 }
