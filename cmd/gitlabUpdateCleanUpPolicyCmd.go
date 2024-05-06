@@ -9,7 +9,7 @@ import (
 
 var gitlabUpdateCleanUpPolicyCmd = &cobra.Command{
 	Use:   "cleanup-policy {project_id}",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	Short: "Update Cleanup Policy for Gitlab project",
 	Long: `
   Update Cleanup Policy for a specific Gitlab project.`,
@@ -18,8 +18,11 @@ var gitlabUpdateCleanUpPolicyCmd = &cobra.Command{
   	opsi gitlab update cleanup-policy 1234
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Take project ID
-		projectID := args[0]
+		projectID := ""
+		if len(args) > 0 {
+			// Take project ID
+			projectID = args[0]
+		}
 
 		// Update cleanup policy
 		err := gitlab.UpdateCleanUpPolicy(projectID)
