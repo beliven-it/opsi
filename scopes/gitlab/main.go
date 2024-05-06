@@ -331,13 +331,32 @@ func (g *gitlab) setDefaultBranch(projectID int, branch string) error {
 }
 
 func (g *gitlab) UpdateCleanUpPolicy(projectID string) error {
-	id, err := strconv.Atoi(projectID)
+	var err error
+	if projectID != "" {
+		id, err := strconv.Atoi(projectID)
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+
+		err = g.applyCleanUpPolicy(id)
+		if err != nil {
+			return err
+		}
+	} else {
+		projectsList, err := g.listProjects()
+
+		if err != nil {
+			return err
+		}
+		for _, project := range projectsList {
+			err := g.applyCleanUpPolicy(project.ID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	err = g.applyCleanUpPolicy(id)
 	return err
 }
 
@@ -357,6 +376,7 @@ func (g *gitlab) applyCleanUpPolicy(projectID int) error {
 	isExcluded, err := g.contains(g.exclusions.CleanupPolicies, projectID)
 	if !isExcluded {
 		_, err = g.request("PUT", fmt.Sprintf("/projects/%d", projectID), defaultCleanUpPolicy, nil)
+		fmt.Println("Cleanup policy updated for the project with ID", projectID)
 	} else {
 		fmt.Println("Cleanup policy not updated for the project with ID", projectID)
 	}
