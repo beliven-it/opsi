@@ -87,6 +87,7 @@ func initConfig() {
 		mainConfig.Gitlab.ApiURL,
 		mainConfig.Gitlab.Token,
 		mainConfig.Gitlab.Mirror,
+		mainConfig.Gitlab.Exclusions,
 	)
 
 	onepassword = op.NewOnePassword(mainConfig.OnePassword.Address)

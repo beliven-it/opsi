@@ -9,9 +9,10 @@ const gitlabDefaultGroupMemberOwner string = "default_group_member_owner"
 const gitlabDefaultGroupMember string = "default_group_member"
 
 type gitlab struct {
-	token  string
-	apiURL string
-	mirror GitlabMirrorOptions
+	token      string
+	apiURL     string
+	mirror     GitlabMirrorOptions
+	exclusions GitlabExclusionsConfig
 }
 
 type Gitlab interface {
@@ -24,6 +25,7 @@ type Gitlab interface {
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
 	UpdateMirroring() error
+	UpdateCleanUpPolicy(string) error
 }
 
 type GitlabMirrorOptions struct {
@@ -35,6 +37,10 @@ type GitlabMirrorOptions struct {
 	GroupID   int    `mapstructure:"group_id"`
 }
 
+type GitlabExclusionsConfig struct {
+	CleanupPolicies []int `mapstructure:"cleanup_policies"`
+}
+
 type gitlabCreateMirrorRequest struct {
 	Enabled               bool   `json:"enabled"`
 	URL                   string `json:"url"`
@@ -42,9 +48,9 @@ type gitlabCreateMirrorRequest struct {
 }
 
 type gitlabMirrorResponse struct {
-	ID                   int    `json:"id"`
-	Enabled           	 bool 	`json:"enabled"`
-	Url					 string `json:"url"`
+	ID      int    `json:"id"`
+	Enabled bool   `json:"enabled"`
+	Url     string `json:"url"`
 }
 
 type gitlabDefaultUser struct {
@@ -244,12 +250,12 @@ var defaultProjectStagingSettings = gitlabSetupBranchRequest{
 
 var defaultCleanUpPolicy = map[string]interface{}{
 	"container_expiration_policy_attributes": map[string]interface{}{
-		"cadence":         "1month",
+		"cadence":         "7d",
 		"enabled":         true,
 		"keep_n":          1,
-		"older_than":      "14d",
+		"older_than":      "7d",
 		"name_regex":      ".*",
-		"name_regex_keep": ".*-main",
+		"name_regex_keep": ".*",
 	},
 }
 

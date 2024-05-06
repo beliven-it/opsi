@@ -9,9 +9,10 @@ type ConfigPostamark struct {
 }
 
 type ConfigGitlab struct {
-	Token  string                     `mapstructure:"token"`
-	ApiURL string                     `mapstructure:"api_url"`
-	Mirror gitlab.GitlabMirrorOptions `mapstructure:"mirror"`
+	Token      string                        `mapstructure:"token"`
+	ApiURL     string                        `mapstructure:"api_url"`
+	Exclusions gitlab.GitlabExclusionsConfig `mapstructure:"exclusions"`
+	Mirror     gitlab.GitlabMirrorOptions    `mapstructure:"mirror"`
 }
 
 type ConfigOnePassword struct {
