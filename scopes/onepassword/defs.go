@@ -60,8 +60,6 @@ var unprivilegedPriPermissions = []string{
 	"archive_items",
 	"view_and_copy_passwords",
 	"view_item_history",
-	"import_items",
-	"export_items",
 	"copy_and_share_items",
 }
 
