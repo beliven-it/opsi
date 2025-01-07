@@ -27,7 +27,7 @@ This tool interact with some entities:
 - `GitLab` for create, setup the repos.
 - `1Password` for create groups and templates.
 - `Postmark` for interact with the servers linked.
-- `Hosts`for interact with ours hosts
+- `Hosts` for interact with ours hosts
 
 <br><br><br><br><br><br>
 
@@ -55,7 +55,8 @@ onepassword:
 
 Some notes about these settings:
 
-- `GITLAB_TOKEN` is an access token. You can generate in your gitlab settings [here](https://gitlab.com/-/profile/personal_access_tokens). Make sure to select the `api` scope in order to work.
+- `GITLAB_TOKEN` is an access token. You can generate in your gitlab settings [here](https://git.beliven.dev/-/user_settings/personal_access_tokens). Make sure to select the `api` and `admin_mode` scope in order to work.
+- `GITLAB_MIRROR_TOKEN` is an access token. You can generate in your gitlab settings [here](https://gitlab.com/-/user_settings/personal_access_tokens). Make sure to select the `api` scope in order to work.
 - `ONEPASSWORD_ADDRESS` the 1password address of your tenant. Like: `my-tenant.1password.com`
 
 <br><br><br><br><br><br>
