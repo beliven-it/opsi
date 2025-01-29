@@ -255,7 +255,7 @@ var defaultCleanUpPolicy = map[string]interface{}{
 		"keep_n":          1,
 		"older_than":      "7d",
 		"name_regex":      ".*",
-		"name_regex_keep": ".*",
+		"name_regex_keep": "",
 	},
 }
 
