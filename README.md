@@ -30,16 +30,6 @@ This tool interact with some entities:
 - `Hosts` for interact with ours hosts
 
 <br><br><br><br><br><br>
-
-## Testing
-To test Opsi CLI in local environment launch this command:
-```bash
-go build -o opsi
-```
-
-Then use the binary to test the commands created, for example:
-```bash
-./opsi gitlab update cleanup-policy
 ```
 
 ## Configuration
