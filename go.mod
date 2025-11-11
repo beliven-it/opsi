@@ -1,6 +1,7 @@
 module opsi
 
-go 1.19
+go 1.21.0
+
 toolchain go1.24.1
 
 require (
@@ -11,7 +12,7 @@ require (
 
 require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mozillazg/go-unidecode v0.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
