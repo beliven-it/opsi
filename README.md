@@ -47,7 +47,7 @@ gitlab:
   mirror:
     api_url: "https://gitlab.com/api/v4"
     group_id: "<GITLAB_MIRROR_GROUP_ID>"
-    group_path: "gitlab.com/<GROUP_NAME>"  
+    group_path: "gitlab.com/<GROUP_NAME>"
     username: "<GITLAB_MIRROR_USERNAME>"
     token: "<GITLAB_MIRROR_TOKEN>"
 onepassword:
@@ -56,7 +56,7 @@ onepassword:
 
 Some notes about these settings:
 
-- `GITLAB_TOKEN` is an access token. You can generate in your gitlab settings [here](https://git.beliven.dev/-/user_settings/personal_access_tokens). Make sure to select the `api` and `admin_mode` scope in order to work.
+- `GITLAB_TOKEN` is an access token. You can generate in your gitlab settings [here](https://gitlab.com/-/user_settings/personal_access_tokens). Make sure to select the `api` and `admin_mode` scope in order to work.
 - `GITLAB_MIRROR_TOKEN` is an access token. You can generate in your gitlab settings [here](https://gitlab.com/-/user_settings/personal_access_tokens). Make sure to select the `api` scope in order to work.
 - `ONEPASSWORD_ADDRESS` the 1password address of your tenant. Like: `my-tenant.1password.com`
 
@@ -66,7 +66,3 @@ Some notes about these settings:
 ## License
 
 Licensed under [MIT](./LICENSE)
-
-
-
-
