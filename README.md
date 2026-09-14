@@ -44,6 +44,9 @@ The configuration file follow this schema:
 gitlab:
   api_url: "https://company.gitlab.com/api/v4"
   token: "<GITLAB_TOKEN>"
+  exclusions:
+    cleanup_policies: [<PROJECT_IDS_LIST>]
+    group_settings: [<GROUP_IDS_LIST>]
   mirror:
     api_url: "https://gitlab.com/api/v4"
     group_id: "<GITLAB_MIRROR_GROUP_ID>"

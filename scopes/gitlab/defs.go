@@ -22,6 +22,8 @@ type Gitlab interface {
 	CreateProject(ProjectRequest) (int, error)
 	CreateSubgroup(string, string, *int) (int, error)
 	CreateGroup(string, string, string) (int, error)
+	GroupSettingsDrift(int) ([]GroupDrift, error)
+	ApplyGroupSettings([]GroupDrift, *chan string) error
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
 	UpdateMirroring() error
@@ -39,6 +41,7 @@ type GitlabMirrorOptions struct {
 
 type GitlabExclusionsConfig struct {
 	CleanupPolicies []int `mapstructure:"cleanup_policies"`
+	GroupSettings   []int `mapstructure:"group_settings"`
 }
 
 type gitlabCreateMirrorRequest struct {
@@ -59,19 +62,47 @@ type gitlabDefaultUser struct {
 }
 
 type gitlabCreateSubgroupRequest struct {
-	Name                  string `json:"name"`
-	Path                  string `json:"path"`
-	ParentID              *int   `json:"parent_id"`
-	Visibility            string `json:"visibility"`
-	ProjectCreationLevel  string `json:"project_creation_level"`
-	SubgroupCreationLevel string `json:"subgroup_creation_level"`
-	RequestAccessEnabled  bool   `json:"request_access_enabled"`
+	Name       string `json:"name"`
+	Path       string `json:"path"`
+	ParentID   *int   `json:"parent_id"`
+	Visibility string `json:"visibility"`
 }
 
 type gitlabSubgroupResponse struct {
-	ID                   int    `json:"id"`
-	Visibility           string `json:"visibility"`
-	RequestAccessEnabled bool   `json:"request_access_enabled"`
+	ID         int    `json:"id"`
+	Visibility string `json:"visibility"`
+}
+
+// Single source of truth for group creation and for the bulk enforcement
+// A nil field means "declared but not managed", distinct from a real false
+type groupSettings struct {
+	MentionsDisabled      *bool   `json:"mentions_disabled,omitempty"`
+	RequireTwoFactorAuth  *bool   `json:"require_two_factor_authentication,omitempty"`
+	TwoFactorGracePeriod  *int    `json:"two_factor_grace_period,omitempty"`
+	RequestAccessEnabled  *bool   `json:"request_access_enabled,omitempty"`
+	ProjectCreationLevel  *string `json:"project_creation_level,omitempty"`
+	SubgroupCreationLevel *string `json:"subgroup_creation_level,omitempty"`
+}
+
+var defaultGroupSettings = groupSettings{
+	MentionsDisabled:      ptr(true),
+	RequireTwoFactorAuth:  ptr(true),
+	TwoFactorGracePeriod:  ptr(48),
+	RequestAccessEnabled:  ptr(true),
+	ProjectCreationLevel:  ptr("maintainer"),
+	SubgroupCreationLevel: ptr("owner"),
+}
+
+func ptr[T any](value T) *T {
+	return &value
+}
+
+// From holds the previous values, for the dry-run report only
+type GroupDrift struct {
+	ID       int
+	FullPath string
+	Changes  map[string]any
+	From     map[string]any
 }
 
 type gitlabCreateProjectRequest struct {
