@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"embed"
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -20,7 +19,7 @@ func ConfigInit(template embed.FS, path string) error {
 
 	configTargetPath := userHomeDir + path
 
-	err = os.MkdirAll(filepath.Dir(configTargetPath), 0755)
+	err = os.MkdirAll(filepath.Dir(configTargetPath), 0700)
 	if err != nil {
 		return err
 	}
@@ -29,13 +28,13 @@ func ConfigInit(template embed.FS, path string) error {
 	if err == nil {
 		return nil
 	} else if os.IsNotExist(err) {
-		err := os.WriteFile(configTargetPath, content, 0755)
+		// The config holds api tokens, so it is a secrets file
+		err := os.WriteFile(configTargetPath, content, 0600)
 		if err != nil {
 			return err
 		}
 		return nil
 	} else {
-		fmt.Println("AAA", err.Error())
 		return err
 	}
 }
