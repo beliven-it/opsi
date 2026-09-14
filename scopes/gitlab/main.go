@@ -668,6 +668,198 @@ func (g *gitlab) DeleteEnvs(projectID string, env string) error {
 	return nil
 }
 
+// The JSON round trip is what makes the two sides of the diff comparable
+func desiredGroupSettings() (map[string]any, error) {
+	asBytes, err := json.Marshal(defaultGroupSettings)
+	if err != nil {
+		return nil, err
+	}
+
+	var desired map[string]any
+	err = json.Unmarshal(asBytes, &desired)
+
+	return desired, err
+}
+
+// A missing value means the setting was never set, which for these booleans is false
+func sameValue(current any, desired any) bool {
+	if current == nil {
+		return desired == false
+	}
+
+	return current == desired
+}
+
+func (g *gitlab) listGroups() ([]map[string]any, error) {
+	var allGroups []map[string]any
+	page := 1
+	perPage := 100
+
+	for {
+		endpoint := fmt.Sprintf("/groups?all_available=true&per_page=%d&page=%d", perPage, page)
+
+		response, err := g.request("GET", endpoint, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		var groups []map[string]any
+		if err := json.Unmarshal(response, &groups); err != nil {
+			return nil, err
+		}
+
+		allGroups = append(allGroups, groups...)
+
+		page++
+		if len(groups) < perPage {
+			break
+		}
+	}
+
+	return allGroups, nil
+}
+
+func groupIdentity(group map[string]any) (int, string) {
+	id, _ := group["id"].(float64)
+	fullPath, _ := group["full_path"].(string)
+
+	return int(id), fullPath
+}
+
+func groupSettingsDiff(group map[string]any, desired map[string]any) (map[string]any, map[string]any) {
+	changes := map[string]any{}
+	from := map[string]any{}
+
+	for key, value := range desired {
+		if sameValue(group[key], value) {
+			continue
+		}
+
+		changes[key] = value
+		from[key] = currentValue(group[key], value)
+	}
+
+	return changes, from
+}
+
+// An unset boolean comes back as null but reads as false in the group UI
+func currentValue(current any, desired any) any {
+	if current == nil {
+		if _, isBool := desired.(bool); isBool {
+			return false
+		}
+	}
+
+	return current
+}
+
+// Gitlab ignores unknown parameters on a PUT, so a mistyped json tag fails silently
+func warnUnknownGroupSettings(group map[string]any, desired map[string]any) {
+	for key := range desired {
+		if _, isKnown := group[key]; !isKnown {
+			fmt.Printf("Warning: %s is not a known group attribute, Gitlab will ignore it\n", key)
+		}
+	}
+}
+
+func filterGroupHierarchy(groups []map[string]any, groupID int) []map[string]any {
+	if groupID == 0 {
+		return groups
+	}
+
+	root := ""
+	for _, group := range groups {
+		if id, fullPath := groupIdentity(group); id == groupID {
+			root = fullPath
+			break
+		}
+	}
+
+	if root == "" {
+		return nil
+	}
+
+	filtered := []map[string]any{}
+	for _, group := range groups {
+		_, fullPath := groupIdentity(group)
+		if fullPath == root || strings.HasPrefix(fullPath, root+"/") {
+			filtered = append(filtered, group)
+		}
+	}
+
+	return filtered
+}
+
+func (g *gitlab) applyGroupSettings(groupID int, body any) error {
+	_, err := g.request("PUT", fmt.Sprintf("/groups/%d", groupID), body, nil)
+
+	return err
+}
+
+// A groupID of zero means the whole instance
+func (g *gitlab) GroupSettingsDrift(groupID int) ([]GroupDrift, error) {
+	desired, err := desiredGroupSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	groups, err := g.listGroups()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(groups) > 0 {
+		warnUnknownGroupSettings(groups[0], desired)
+	}
+
+	drifts := []GroupDrift{}
+	for _, group := range filterGroupHierarchy(groups, groupID) {
+		id, fullPath := groupIdentity(group)
+
+		isExcluded, _ := g.contains(g.exclusions.GroupSettings, id)
+		if isExcluded {
+			continue
+		}
+
+		changes, from := groupSettingsDiff(group, desired)
+		if len(changes) == 0 {
+			continue
+		}
+
+		drifts = append(drifts, GroupDrift{
+			ID:       id,
+			FullPath: fullPath,
+			Changes:  changes,
+			From:     from,
+		})
+	}
+
+	return drifts, nil
+}
+
+func (g *gitlab) ApplyGroupSettings(drifts []GroupDrift, channel *chan string) error {
+	wg := sync.WaitGroup{}
+
+	for _, drift := range drifts {
+		wg.Add(1)
+		go func(drift GroupDrift) {
+			defer wg.Done()
+
+			err := g.applyGroupSettings(drift.ID, drift.Changes)
+			if err != nil {
+				*channel <- fmt.Sprintf("Error on update settings for group %s: %s", drift.FullPath, err.Error())
+				return
+			}
+
+			*channel <- fmt.Sprintf("Settings updated for group %s", drift.FullPath)
+		}(drift)
+	}
+
+	wg.Wait()
+
+	return nil
+}
+
 // Create subgroup
 func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 	// Check if name and path are property set
@@ -684,6 +876,15 @@ func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 	// Take the response
 	var subgroup gitlabSubgroupResponse
 	err = json.Unmarshal(bodyResponse, &subgroup)
+	if err != nil {
+		return 0, err
+	}
+
+	// POST /groups does not accept every managed setting
+	err = g.applyGroupSettings(subgroup.ID, defaultGroupSettings)
+	if err != nil {
+		return 0, err
+	}
 
 	// If the group is create at root level,
 	// provide some default users to the group
@@ -712,13 +913,10 @@ func (g *gitlab) createGroup(payload gitlabCreateSubgroupRequest) (int, error) {
 // Create group
 func (g *gitlab) CreateGroup(name string, path string, visibility string) (int, error) {
 	payload := gitlabCreateSubgroupRequest{
-		Name:                  name,
-		Path:                  path,
-		ParentID:              nil,
-		Visibility:            visibility,
-		RequestAccessEnabled:  false,
-		ProjectCreationLevel:  "maintainer",
-		SubgroupCreationLevel: "owner",
+		Name:       name,
+		Path:       path,
+		ParentID:   nil,
+		Visibility: visibility,
 	}
 
 	return g.createGroup(payload)
@@ -734,13 +932,10 @@ func (g *gitlab) CreateSubgroup(name string, path string, group *int) (int, erro
 
 	// Create the POST request payload
 	payload := gitlabCreateSubgroupRequest{
-		Name:                  name,
-		Path:                  path,
-		ParentID:              group,
-		Visibility:            parentGroupDetail.Visibility,
-		RequestAccessEnabled:  parentGroupDetail.RequestAccessEnabled,
-		ProjectCreationLevel:  "maintainer",
-		SubgroupCreationLevel: "owner",
+		Name:       name,
+		Path:       path,
+		ParentID:   group,
+		Visibility: parentGroupDetail.Visibility,
 	}
 
 	return g.createGroup(payload)

@@ -16,4 +16,8 @@ opsi
 # vendor/
 .idea/
 
+# Build
 dist/
+
+# Tokensave
+.tokensave
