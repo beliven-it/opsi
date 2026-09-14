@@ -47,6 +47,15 @@ func Execute() {
 }
 
 func initConfig() {
+	// Checked here rather than in init so that importing the package, and every
+	// command that does not shell out to op, does not depend on it
+	if helpers.Which("op") == "" {
+		fmt.Println("Missing op executable")
+		fmt.Println("Please follow the instructions for install the binaries here:")
+		fmt.Print("\nhttps://developer.1password.com/docs/cli/get-started\n\n")
+		os.Exit(1)
+	}
+
 	// Don't forget to read config either from cfgFile or from home directory!
 	// Find home directory.
 	home, err := os.UserHomeDir()
@@ -96,12 +105,5 @@ func initConfig() {
 }
 
 func init() {
-	if helpers.Which("op") == "" {
-		fmt.Println("Missing op executable")
-		fmt.Println("Please follow the instructions for install the binaries here:")
-		fmt.Print("\nhttps://developer.1password.com/docs/cli/get-started\n\n")
-		os.Exit(1)
-	}
-
 	cobra.OnInitialize(initConfig)
 }
