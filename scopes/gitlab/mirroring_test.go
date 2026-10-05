@@ -110,3 +110,35 @@ func TestUpdateMirroringSkipsMalformedURL(t *testing.T) {
 		t.Errorf("mirror must not be deleted, got DELETE on %v", deletes)
 	}
 }
+
+func TestCheckMirroringExistence(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		wantID  int
+		wantHas bool
+	}{
+		{"no mirror", `[]`, 0, false},
+		{"enabled mirror", `[{"id":1,"enabled":true,"url":"u"}]`, 1, true},
+		{"disabled mirror is still a mirror", `[{"id":2,"enabled":false,"url":"u"}]`, 2, true},
+		{"enabled is preferred over disabled", `[{"id":3,"enabled":false},{"id":4,"enabled":true}]`, 4, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, c.body)
+			}))
+			defer server.Close()
+
+			g := &gitlab{apiURL: server.URL, token: "t"}
+			mirror, has, err := g.checkMirroringExistence(1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if has != c.wantHas || mirror.ID != c.wantID {
+				t.Errorf("got (%d, %v), want (%d, %v)", mirror.ID, has, c.wantID, c.wantHas)
+			}
+		})
+	}
+}

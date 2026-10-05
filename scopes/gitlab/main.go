@@ -67,10 +67,12 @@ func (g *gitlab) UpdateMirroring() error {
 	var mirroringProjects []gitlabMirrorResponse
 	var withoutMirroring []string
 
-	// Filter repositories with mirroring enabled
-	for _, project := range projectsList {
+	// Filter repositories with a mirror (enabled or not)
+	for i, project := range projectsList {
+		progress("Checking mirrors... %d/%d", i+1, len(projectsList))
 		mirroringProject, hasMirroring, err := g.checkMirroringExistence(project.ID)
 		if err != nil {
+			endProgress()
 			return err
 		}
 		if hasMirroring {
@@ -81,10 +83,11 @@ func (g *gitlab) UpdateMirroring() error {
 		}
 	}
 
-	fmt.Printf("Found %d projects: %d with an enabled mirror, %d without\n",
+	endProgress()
+	fmt.Printf("Found %d projects: %d with a mirror, %d without\n",
 		len(projectsList), len(projectsIDWithMirroring), len(withoutMirroring))
 	if len(withoutMirroring) > 0 {
-		fmt.Println("Skipped (no enabled mirror):")
+		fmt.Println("Skipped (no mirror):")
 		for _, name := range withoutMirroring {
 			fmt.Println("  -", name)
 		}
@@ -155,7 +158,8 @@ func (g *gitlab) enableMirrorWithRetry(projectID int, projectName string) error 
 }
 
 func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
-	fmt.Println("Retrieving projects list...")
+	progress("Retrieving projects list...")
+	defer endProgress()
 	var allProjects []gitlabProjectResponse
 	nextPage := 1
 	perPage := 100
@@ -176,6 +180,7 @@ func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
 			return nil, err
 		}
 		allProjects = append(allProjects, projects...)
+		progress("Retrieving projects list... %d", len(allProjects))
 
 		// Check if there are more pages
 		nextPage++
@@ -187,6 +192,7 @@ func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
 	return allProjects, nil
 }
 
+// checkMirroringExistence reports whether the project has a remote mirror.
 func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, bool, error) {
 	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors", projectID)
 	response, err := g.request("GET", endpoint, nil, nil)
@@ -203,15 +209,35 @@ func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, b
 		return gitlabMirrorResponse{}, false, err
 	}
 
-	// Check if the project has at least one mirroring enabled
+	// Mirrors turned off by GitLab (e.g. when maintainers cannot manage
+	// mirroring) are still mirrors to recreate: prefer an enabled one,
+	// otherwise take the first.
 	for _, projectRemoteMirror := range projectRemoteMirrors {
 		if projectRemoteMirror.Enabled {
 			return projectRemoteMirror, true, nil
 		}
 	}
-	// If no mirror response has mirroring enabled, return false
+	if len(projectRemoteMirrors) > 0 {
+		return projectRemoteMirrors[0], true, nil
+	}
+
 	return gitlabMirrorResponse{}, false, nil
 }
+
+// progress rewrites the current terminal line, endProgress closes it.
+func progress(format string, args ...any) {
+	fmt.Printf("\r\033[K"+format, args...)
+	progressActive = true
+}
+
+func endProgress() {
+	if progressActive {
+		fmt.Println()
+		progressActive = false
+	}
+}
+
+var progressActive bool
 
 func (g *gitlab) deleteMirroring(projectID int, mirroringProjectID int) error {
 	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors/%d", projectID, mirroringProjectID)
