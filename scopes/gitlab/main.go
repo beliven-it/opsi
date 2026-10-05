@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"opsi/helpers"
 	"os"
 	"regexp"
@@ -65,48 +66,173 @@ func (g *gitlab) UpdateMirroring() error {
 
 	var projectsIDWithMirroring []int
 	var mirroringProjects []gitlabMirrorResponse
+	var withoutMirroring []string
 
-	// Filter repositories with mirroring enabled
-	for _, project := range projectsList {
+	// Filter repositories with a mirror (enabled or not)
+	for i, project := range projectsList {
+		progress("Checking mirrors... %d/%d", i+1, len(projectsList))
 		mirroringProject, hasMirroring, err := g.checkMirroringExistence(project.ID)
 		if err != nil {
+			endProgress()
 			return err
 		}
 		if hasMirroring {
 			projectsIDWithMirroring = append(projectsIDWithMirroring, project.ID)
 			mirroringProjects = append(mirroringProjects, mirroringProject)
+		} else {
+			withoutMirroring = append(withoutMirroring, project.PathWithNamespace)
+		}
+	}
+
+	endProgress()
+	fmt.Printf("Found %d projects: %d with a mirror, %d without\n",
+		len(projectsList), len(projectsIDWithMirroring), len(withoutMirroring))
+	if len(withoutMirroring) > 0 {
+		fmt.Println("Skipped (no mirror):")
+		for _, name := range withoutMirroring {
+			fmt.Println("  -", name)
 		}
 	}
 
 	//Recreate mirroring
+	var failures []error
 	for i := 0; i < len(projectsIDWithMirroring) && i < len(mirroringProjects); i++ {
-		//Delete current mirroring
 		projectID := projectsIDWithMirroring[i]
 		mirroringProjectID := mirroringProjects[i].ID
-		err := g.deleteMirroring(projectID, mirroringProjectID)
 
+		// Resolve the name before deleting, so a malformed URL never
+		// leaves the project without mirroring.
+		projectName, err := mirrorProjectName(mirroringProjects[i].Url)
 		if err != nil {
-			return err
+			fmt.Printf("Skipping project %d: %v\n", projectID, err)
+			failures = append(failures, fmt.Errorf("project %d: %w", projectID, err))
+			continue
 		}
-		// //Create new mirroring
-		patternUrl := `\/([^\/]+)\.git$`
-		re := regexp.MustCompile(patternUrl)
-		matches := re.FindStringSubmatch(mirroringProjects[i].Url)
-		projectName := matches[1]
 
-		_, err = g.enableMirrorForProject(projectID, projectName)
-		if err != nil {
+		//Delete current mirroring
+		if err := g.deleteMirroring(projectID, mirroringProjectID); err != nil {
+			fmt.Printf("Error when deleting mirroring for %s: %v\n", projectName, err)
+			failures = append(failures, fmt.Errorf("%s: %w", projectName, err))
+			continue
+		}
+
+		//Create new mirroring
+		if err := g.enableMirrorWithRetry(projectID, projectName); err != nil {
 			fmt.Printf("Error when updating mirroring for %s: %v\n", projectName, err)
+			failures = append(failures, fmt.Errorf("%s: %w", projectName, err))
+			continue
 		}
 		fmt.Println("Mirroring updated for", projectName)
 	}
 
-	// Return the error
+	return errors.Join(failures...)
+}
+
+// CreateMirror sets up the mirroring for existing projects, given as numeric
+// ID or full path. Projects are processed independently: failures are
+// reported at the end instead of stopping the run.
+func (g *gitlab) CreateMirror(projects []string) error {
+	var failures []error
+	for _, ref := range projects {
+		name, err := g.createMirrorForProject(ref)
+		if err != nil {
+			fmt.Printf("Error when creating mirroring for %s: %v\n", ref, err)
+			failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+			continue
+		}
+		fmt.Println("Mirroring created for", name)
+	}
+
+	return errors.Join(failures...)
+}
+
+func (g *gitlab) createMirrorForProject(ref string) (string, error) {
+	response, err := g.request("GET", "/projects/"+url.PathEscape(ref), nil, nil)
+	if err != nil {
+		return ref, err
+	}
+
+	var project struct {
+		ID                int    `json:"id"`
+		Name              string `json:"name"`
+		Path              string `json:"path"`
+		PathWithNamespace string `json:"path_with_namespace"`
+	}
+	if err := json.Unmarshal(response, &project); err != nil {
+		return ref, err
+	}
+
+	// A project that already has a mirror (enabled or not) is the job
+	// of the update command, not of this one.
+	_, hasMirror, err := g.checkMirroringExistence(project.ID)
+	if err != nil {
+		return project.PathWithNamespace, err
+	}
+	if hasMirror {
+		return project.PathWithNamespace, errors.New("the project already has a mirror, use `opsi gitlab update mirroring`")
+	}
+
+	// Create the destination project only when it is not there yet.
+	if !g.mirrorProjectExists(project.Path) {
+		if err := g.setupMirrorProject(project.Name, project.Path, g.mirror.GroupID); err != nil {
+			return project.PathWithNamespace, fmt.Errorf("cannot create the mirror project: %w", err)
+		}
+	}
+
+	if err := g.enableMirrorWithRetry(project.ID, project.Path); err != nil {
+		return project.PathWithNamespace, err
+	}
+
+	return project.PathWithNamespace, nil
+}
+
+// mirrorProjectExists checks the destination project on the mirror instance.
+// group_path is "host/group[/subgroup]" so the host is stripped.
+func (g *gitlab) mirrorProjectExists(path string) bool {
+	parts := strings.SplitN(g.mirror.GroupPath, "/", 2)
+	if len(parts) < 2 {
+		return false
+	}
+
+	fullPath := parts[1] + "/" + path
+	_, err := g.mirrorRequest("GET", "/projects/"+url.PathEscape(fullPath), nil, nil)
+
+	return err == nil
+}
+
+// mirrorProjectName extracts the repository name from a mirror URL
+// like https://user:token@host/group/name.git
+func mirrorProjectName(mirrorURL string) (string, error) {
+	re := regexp.MustCompile(`\/([^\/]+)\.git$`)
+	matches := re.FindStringSubmatch(mirrorURL)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("cannot extract project name from mirror url")
+	}
+	return matches[1], nil
+}
+
+const mirrorMaxAttempts = 3
+
+var mirrorRetryDelay = 2 * time.Second
+
+// enableMirrorWithRetry retries the mirror creation with a growing delay.
+func (g *gitlab) enableMirrorWithRetry(projectID int, projectName string) error {
+	var err error
+	for attempt := 1; attempt <= mirrorMaxAttempts; attempt++ {
+		if _, err = g.enableMirrorForProject(projectID, projectName); err == nil {
+			return nil
+		}
+		if attempt < mirrorMaxAttempts {
+			fmt.Printf("Attempt %d/%d failed for %s, retrying...\n", attempt, mirrorMaxAttempts, projectName)
+			time.Sleep(time.Duration(attempt) * mirrorRetryDelay)
+		}
+	}
 	return err
 }
 
 func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
-	fmt.Println("Retrieving projects list...")
+	progress("Retrieving projects list...")
+	defer endProgress()
 	var allProjects []gitlabProjectResponse
 	nextPage := 1
 	perPage := 100
@@ -127,6 +253,7 @@ func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
 			return nil, err
 		}
 		allProjects = append(allProjects, projects...)
+		progress("Retrieving projects list... %d", len(allProjects))
 
 		// Check if there are more pages
 		nextPage++
@@ -138,6 +265,7 @@ func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
 	return allProjects, nil
 }
 
+// checkMirroringExistence reports whether the project has a remote mirror.
 func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, bool, error) {
 	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors", projectID)
 	response, err := g.request("GET", endpoint, nil, nil)
@@ -154,15 +282,35 @@ func (g *gitlab) checkMirroringExistence(projectID int) (gitlabMirrorResponse, b
 		return gitlabMirrorResponse{}, false, err
 	}
 
-	// Check if the project has at least one mirroring enabled
+	// Mirrors turned off by GitLab (e.g. when maintainers cannot manage
+	// mirroring) are still mirrors to recreate: prefer an enabled one,
+	// otherwise take the first.
 	for _, projectRemoteMirror := range projectRemoteMirrors {
 		if projectRemoteMirror.Enabled {
 			return projectRemoteMirror, true, nil
 		}
 	}
-	// If no mirror response has mirroring enabled, return false
+	if len(projectRemoteMirrors) > 0 {
+		return projectRemoteMirrors[0], true, nil
+	}
+
 	return gitlabMirrorResponse{}, false, nil
 }
+
+// progress rewrites the current terminal line, endProgress closes it.
+func progress(format string, args ...any) {
+	fmt.Printf("\r\033[K"+format, args...)
+	progressActive = true
+}
+
+func endProgress() {
+	if progressActive {
+		fmt.Println()
+		progressActive = false
+	}
+}
+
+var progressActive bool
 
 func (g *gitlab) deleteMirroring(projectID int, mirroringProjectID int) error {
 	endpoint := fmt.Sprintf("/projects/%d/remote_mirrors/%d", projectID, mirroringProjectID)
@@ -268,6 +416,7 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 		"page": pageAsString,
 	})
 	if err != nil {
+		endProgress()
 		return entities, err
 	}
 
@@ -275,11 +424,13 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 	var list []gitlabEntityWithID
 	err = json.Unmarshal(listAsBytes, &list)
 	if err != nil {
+		endProgress()
 		return entities, err
 	}
 
 	// If the list obtained is empty return the list of the items collected until now.
 	if len(list) == 0 {
+		endProgress()
 		return entities, nil
 	}
 
@@ -288,6 +439,7 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 
 	// Otherwise continue to iterate the items of the next page.
 	entities = append(entities, list...)
+	progress("Retrieving %s... %d", strings.TrimPrefix(endpoint, "/"), len(entities))
 	return g.walkThroughRequest(endpoint, entities, page)
 }
 
@@ -695,6 +847,9 @@ func (g *gitlab) listGroups() ([]map[string]any, error) {
 	page := 1
 	perPage := 100
 
+	progress("Retrieving groups list...")
+	defer endProgress()
+
 	for {
 		endpoint := fmt.Sprintf("/groups?all_available=true&per_page=%d&page=%d", perPage, page)
 
@@ -709,6 +864,7 @@ func (g *gitlab) listGroups() ([]map[string]any, error) {
 		}
 
 		allGroups = append(allGroups, groups...)
+		progress("Retrieving groups list... %d", len(allGroups))
 
 		page++
 		if len(groups) < perPage {
