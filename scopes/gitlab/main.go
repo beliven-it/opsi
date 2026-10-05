@@ -79,29 +79,66 @@ func (g *gitlab) UpdateMirroring() error {
 	}
 
 	//Recreate mirroring
+	var failures []error
 	for i := 0; i < len(projectsIDWithMirroring) && i < len(mirroringProjects); i++ {
-		//Delete current mirroring
 		projectID := projectsIDWithMirroring[i]
 		mirroringProjectID := mirroringProjects[i].ID
-		err := g.deleteMirroring(projectID, mirroringProjectID)
 
+		// Resolve the name before deleting, so a malformed URL never
+		// leaves the project without mirroring.
+		projectName, err := mirrorProjectName(mirroringProjects[i].Url)
 		if err != nil {
-			return err
+			fmt.Printf("Skipping project %d: %v\n", projectID, err)
+			failures = append(failures, fmt.Errorf("project %d: %w", projectID, err))
+			continue
 		}
-		// //Create new mirroring
-		patternUrl := `\/([^\/]+)\.git$`
-		re := regexp.MustCompile(patternUrl)
-		matches := re.FindStringSubmatch(mirroringProjects[i].Url)
-		projectName := matches[1]
 
-		_, err = g.enableMirrorForProject(projectID, projectName)
-		if err != nil {
+		//Delete current mirroring
+		if err := g.deleteMirroring(projectID, mirroringProjectID); err != nil {
+			fmt.Printf("Error when deleting mirroring for %s: %v\n", projectName, err)
+			failures = append(failures, fmt.Errorf("%s: %w", projectName, err))
+			continue
+		}
+
+		//Create new mirroring
+		if err := g.enableMirrorWithRetry(projectID, projectName); err != nil {
 			fmt.Printf("Error when updating mirroring for %s: %v\n", projectName, err)
+			failures = append(failures, fmt.Errorf("%s: %w", projectName, err))
+			continue
 		}
 		fmt.Println("Mirroring updated for", projectName)
 	}
 
-	// Return the error
+	return errors.Join(failures...)
+}
+
+// mirrorProjectName extracts the repository name from a mirror URL
+// like https://user:token@host/group/name.git
+func mirrorProjectName(mirrorURL string) (string, error) {
+	re := regexp.MustCompile(`\/([^\/]+)\.git$`)
+	matches := re.FindStringSubmatch(mirrorURL)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("cannot extract project name from mirror url")
+	}
+	return matches[1], nil
+}
+
+const mirrorMaxAttempts = 3
+
+var mirrorRetryDelay = 2 * time.Second
+
+// enableMirrorWithRetry retries the mirror creation with a growing delay.
+func (g *gitlab) enableMirrorWithRetry(projectID int, projectName string) error {
+	var err error
+	for attempt := 1; attempt <= mirrorMaxAttempts; attempt++ {
+		if _, err = g.enableMirrorForProject(projectID, projectName); err == nil {
+			return nil
+		}
+		if attempt < mirrorMaxAttempts {
+			fmt.Printf("Attempt %d/%d failed for %s, retrying...\n", attempt, mirrorMaxAttempts, projectName)
+			time.Sleep(time.Duration(attempt) * mirrorRetryDelay)
+		}
+	}
 	return err
 }
 
