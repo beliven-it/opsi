@@ -65,6 +65,7 @@ func (g *gitlab) UpdateMirroring() error {
 
 	var projectsIDWithMirroring []int
 	var mirroringProjects []gitlabMirrorResponse
+	var withoutMirroring []string
 
 	// Filter repositories with mirroring enabled
 	for _, project := range projectsList {
@@ -75,6 +76,17 @@ func (g *gitlab) UpdateMirroring() error {
 		if hasMirroring {
 			projectsIDWithMirroring = append(projectsIDWithMirroring, project.ID)
 			mirroringProjects = append(mirroringProjects, mirroringProject)
+		} else {
+			withoutMirroring = append(withoutMirroring, project.PathWithNamespace)
+		}
+	}
+
+	fmt.Printf("Found %d projects: %d with an enabled mirror, %d without\n",
+		len(projectsList), len(projectsIDWithMirroring), len(withoutMirroring))
+	if len(withoutMirroring) > 0 {
+		fmt.Println("Skipped (no enabled mirror):")
+		for _, name := range withoutMirroring {
+			fmt.Println("  -", name)
 		}
 	}
 

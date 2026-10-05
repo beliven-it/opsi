@@ -148,7 +148,8 @@ type gitlabAddUserToGroupRequest struct {
 }
 
 type gitlabProjectResponse struct {
-	ID int `json:"id"`
+	ID                int    `json:"id"`
+	PathWithNamespace string `json:"path_with_namespace"`
 }
 
 type gitlabProjectListVariable struct {
