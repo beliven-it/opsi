@@ -8,24 +8,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabCreateGroupCmd = &cobra.Command{
-	Use:   "group {group_name}",
+var gitlabGroupCreateCmd = &cobra.Command{
+	Use:   "create {group_name}",
 	Args:  cobra.ExactArgs(1),
 	Short: "Create a Gitlab group",
 	Long:  "Create a Gitlab group",
 	Example: `
   Create a group with name "research"
-  opsi gitlab create group research
+  opsi gitlab group create research
 
   ---
 
   Create a group with name "development" but with path to "devs"
-  opsi gitlab create group development -p devs
+  opsi gitlab group create development -p devs
 
   ---
 
   Create a group with name "development" with "public" visibility
-  opsi gitlab create group development -i public
+  opsi gitlab group create development -i public
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take the name of the group
@@ -55,7 +55,7 @@ var gitlabCreateGroupCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabCreateCmd.AddCommand(gitlabCreateGroupCmd)
-	gitlabCreateGroupCmd.Flags().StringP("path", "p", "", "The slugify name for the group")
-	gitlabCreateGroupCmd.Flags().StringP("visibility", "i", "private", "Set the visibility of the group")
+	gitlabGroupCmd.AddCommand(gitlabGroupCreateCmd)
+	gitlabGroupCreateCmd.Flags().StringP("path", "p", "", "The slugify name for the group")
+	gitlabGroupCreateCmd.Flags().StringP("visibility", "i", "private", "Set the visibility of the group")
 }

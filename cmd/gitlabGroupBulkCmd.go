@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabBulkGroupsCmd = &cobra.Command{
-	Use:   "groups",
+var gitlabGroupBulkCmd = &cobra.Command{
+	Use:   "bulk",
 	Short: "Align gitlab groups to the default settings",
 	Long: `Align gitlab groups to the default settings.
 
@@ -18,17 +18,17 @@ The command always reports the groups that differ before touching anything,
 and asks for confirmation before applying.`,
 	Example: `
   Report the groups that differ, without applying anything
-  opsi gitlab bulk groups --dry-run
+  opsi gitlab group bulk --dry-run
 
   ---
 
   Align every group, asking for confirmation first
-  opsi gitlab bulk groups
+  opsi gitlab group bulk
 
   ---
 
   Align a single group and its subgroups
-  opsi gitlab bulk groups -g 1234
+  opsi gitlab group bulk -g 1234
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		group, _ := cmd.Flags().GetInt("group")
@@ -90,8 +90,8 @@ and asks for confirmation before applying.`,
 }
 
 func init() {
-	gitlabBulkCmd.AddCommand(gitlabBulkGroupsCmd)
-	gitlabBulkGroupsCmd.Flags().IntP("group", "g", 0, "Restrict the update to a group and its subgroups")
-	gitlabBulkGroupsCmd.Flags().Bool("dry-run", false, "Only report the groups that differ")
-	gitlabBulkGroupsCmd.Flags().BoolP("force", "f", false, "Not ask confirmation before applying")
+	gitlabGroupCmd.AddCommand(gitlabGroupBulkCmd)
+	gitlabGroupBulkCmd.Flags().IntP("group", "g", 0, "Restrict the update to a group and its subgroups")
+	gitlabGroupBulkCmd.Flags().Bool("dry-run", false, "Only report the groups that differ")
+	gitlabGroupBulkCmd.Flags().BoolP("force", "f", false, "Not ask confirmation before applying")
 }

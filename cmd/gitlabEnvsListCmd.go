@@ -7,19 +7,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabListEnvsCmd = &cobra.Command{
-	Use:   "envs {project_id}",
+var gitlabEnvsListCmd = &cobra.Command{
+	Use:   "list {project_id}",
 	Args:  cobra.ExactArgs(1),
 	Short: "List ENVs for Gitlab project",
 	Long:  "List ENVs for Gitlab project",
 	Example: `
   Show all envs for the project 1234
-  opsi gitlab list envs 1234
+  opsi gitlab envs list 1234
   
   ---
 
   Show all envs for the project 1234 but only for staging environment
-  opsi gitlab list env 1234 -e staging
+  opsi gitlab envs list 1234 -e staging
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take project ID
@@ -38,6 +38,6 @@ var gitlabListEnvsCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabListCmd.AddCommand(gitlabListEnvsCmd)
-	gitlabListEnvsCmd.Flags().StringP("env", "e", "*", "The environment scope")
+	gitlabEnvsCmd.AddCommand(gitlabEnvsListCmd)
+	gitlabEnvsListCmd.Flags().StringP("env", "e", "*", "The environment scope")
 }

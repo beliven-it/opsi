@@ -8,14 +8,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabDeprovisioningCmd = &cobra.Command{
+var gitlabUserDeprovisioningCmd = &cobra.Command{
 	Use:   "deprovisioning {username}",
 	Args:  cobra.ExactArgs(1),
 	Short: "Remove an user from all groups and projects",
 	Long:  "Remove an user from all groups and projects",
 	Example: `
   Remove the user john.doe from gitlab.
-  opsi gitlab deprovisioning john.doe	
+  opsi gitlab user deprovisioning john.doe	
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take the username
@@ -37,6 +37,6 @@ var gitlabDeprovisioningCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabCmd.AddCommand(gitlabDeprovisioningCmd)
-	gitlabDeprovisioningCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
+	gitlabUserCmd.AddCommand(gitlabUserDeprovisioningCmd)
+	gitlabUserDeprovisioningCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
 }

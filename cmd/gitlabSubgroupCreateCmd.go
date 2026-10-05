@@ -8,19 +8,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabCreateSubgroupCmd = &cobra.Command{
-	Use:   "subgroup {subgroup_name}",
+var gitlabSubgroupCreateCmd = &cobra.Command{
+	Use:   "create {subgroup_name}",
 	Args:  cobra.ExactArgs(1),
 	Short: "Create a Gitlab subgroup",
 	Long:  "Create a Gitlab subgroup",
 	Example: `
   Create a subgroup with name "research" attach to a specific group with id 1234
-  opsi gitlab create subgroup research -s 1234 
+  opsi gitlab subgroup create research -s 1234 
 
   ---
 
   Create a subgroup with name "development" but with path to "devs"
-  opsi gitlab create subgroup development -p devs -s 1234
+  opsi gitlab subgroup create development -p devs -s 1234
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take the name of the group
@@ -56,10 +56,10 @@ var gitlabCreateSubgroupCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabCreateCmd.AddCommand(gitlabCreateSubgroupCmd)
-	gitlabCreateSubgroupCmd.Flags().IntP("parent", "s", 0, "The parent of the subgroup you want create")
-	gitlabCreateSubgroupCmd.Flags().StringP("path", "p", "", "The slugify name for the subgroup")
+	gitlabSubgroupCmd.AddCommand(gitlabSubgroupCreateCmd)
+	gitlabSubgroupCreateCmd.Flags().IntP("parent", "s", 0, "The parent of the subgroup you want create")
+	gitlabSubgroupCreateCmd.Flags().StringP("path", "p", "", "The slugify name for the subgroup")
 
 	// Mark group as required
-	gitlabCreateSubgroupCmd.MarkFlagRequired("parent")
+	gitlabSubgroupCreateCmd.MarkFlagRequired("parent")
 }

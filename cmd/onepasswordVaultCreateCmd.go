@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var onepasswordCreateCmd = &cobra.Command{
+var onepasswordVaultCreateCmd = &cobra.Command{
 	Use:   "create {project_name}",
 	Args:  cobra.ExactArgs(1),
 	Short: "Allow to create a project inside a 1password environment",
@@ -20,7 +20,7 @@ In specific, the following entities will be created:
 	`,
 	Example: `  
   Create a 1password vault called "personal vault"
-  opsi 1password create "personal vault"	
+  opsi 1password vault create "personal vault"	
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		err := onepassword.Create(args[0])
@@ -34,5 +34,5 @@ In specific, the following entities will be created:
 }
 
 func init() {
-	onepasswordCmd.AddCommand(onepasswordCreateCmd)
+	onepasswordVaultCmd.AddCommand(onepasswordVaultCreateCmd)
 }
