@@ -343,6 +343,7 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 		"page": pageAsString,
 	})
 	if err != nil {
+		endProgress()
 		return entities, err
 	}
 
@@ -350,11 +351,13 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 	var list []gitlabEntityWithID
 	err = json.Unmarshal(listAsBytes, &list)
 	if err != nil {
+		endProgress()
 		return entities, err
 	}
 
 	// If the list obtained is empty return the list of the items collected until now.
 	if len(list) == 0 {
+		endProgress()
 		return entities, nil
 	}
 
@@ -363,6 +366,7 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 
 	// Otherwise continue to iterate the items of the next page.
 	entities = append(entities, list...)
+	progress("Retrieving %s... %d", strings.TrimPrefix(endpoint, "/"), len(entities))
 	return g.walkThroughRequest(endpoint, entities, page)
 }
 
@@ -770,6 +774,9 @@ func (g *gitlab) listGroups() ([]map[string]any, error) {
 	page := 1
 	perPage := 100
 
+	progress("Retrieving groups list...")
+	defer endProgress()
+
 	for {
 		endpoint := fmt.Sprintf("/groups?all_available=true&per_page=%d&page=%d", perPage, page)
 
@@ -784,6 +791,7 @@ func (g *gitlab) listGroups() ([]map[string]any, error) {
 		}
 
 		allGroups = append(allGroups, groups...)
+		progress("Retrieving groups list... %d", len(allGroups))
 
 		page++
 		if len(groups) < perPage {
