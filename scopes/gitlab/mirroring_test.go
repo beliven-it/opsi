@@ -142,3 +142,113 @@ func TestCheckMirroringExistence(t *testing.T) {
 		})
 	}
 }
+
+// newMirrorFixture serves a source instance with one project and a mirror
+// instance, recording the calls that matter.
+func newMirrorFixture(t *testing.T, sourceMirrors string, destinationExists bool) (*gitlab, *[]string) {
+	t.Helper()
+
+	var mu sync.Mutex
+	calls := []string{}
+	record := func(r *http.Request) {
+		mu.Lock()
+		calls = append(calls, r.Method+" "+r.URL.EscapedPath())
+		mu.Unlock()
+	}
+
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		switch {
+		case r.Method == "GET" && r.URL.EscapedPath() == "/projects/corporate%2Fwiki":
+			fmt.Fprint(w, `{"id":7,"name":"Wiki","path":"wiki","path_with_namespace":"corporate/wiki"}`)
+		case r.Method == "GET" && r.URL.Path == "/projects/7/remote_mirrors":
+			fmt.Fprint(w, sourceMirrors)
+		case r.Method == "POST" && r.URL.Path == "/projects/7/remote_mirrors":
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, `{}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"404"}`)
+		}
+	}))
+	t.Cleanup(source.Close)
+
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record(r)
+		switch {
+		case r.Method == "GET" && r.URL.EscapedPath() == "/projects/mirrors%2Fwiki" && destinationExists:
+			fmt.Fprint(w, `{"id":99}`)
+		case r.Method == "POST" && r.URL.Path == "/projects":
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, `{"id":99}`)
+		case r.Method == "PATCH":
+			fmt.Fprint(w, `{}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"404"}`)
+		}
+	}))
+	t.Cleanup(mirror.Close)
+
+	g := &gitlab{apiURL: source.URL, token: "t"}
+	g.mirror.ApiURL = mirror.URL
+	g.mirror.GroupPath = "gitlab.example.com/mirrors"
+	g.mirror.GroupID = 5
+
+	return g, &calls
+}
+
+func TestCreateMirrorWithExistingDestination(t *testing.T) {
+	g, calls := newMirrorFixture(t, `[]`, true)
+
+	if err := g.CreateMirror([]string{"corporate/wiki"}); err != nil {
+		t.Fatal(err)
+	}
+
+	joined := strings.Join(*calls, "\n")
+	if strings.Contains(joined, "POST /projects\n") || strings.HasSuffix(joined, "POST /projects") {
+		t.Errorf("destination exists, it must not be created again:\n%s", joined)
+	}
+	if !strings.Contains(joined, "POST /projects/7/remote_mirrors") {
+		t.Errorf("remote mirror was not created:\n%s", joined)
+	}
+}
+
+func TestCreateMirrorCreatesMissingDestination(t *testing.T) {
+	g, calls := newMirrorFixture(t, `[]`, false)
+
+	if err := g.CreateMirror([]string{"corporate/wiki"}); err != nil {
+		t.Fatal(err)
+	}
+
+	joined := strings.Join(*calls, "\n")
+	if !strings.Contains(joined, "POST /projects\n") && !strings.HasSuffix(joined, "POST /projects") {
+		t.Errorf("missing destination was not created:\n%s", joined)
+	}
+	if !strings.Contains(joined, "POST /projects/7/remote_mirrors") {
+		t.Errorf("remote mirror was not created:\n%s", joined)
+	}
+}
+
+func TestCreateMirrorRefusesProjectsWithAMirror(t *testing.T) {
+	g, calls := newMirrorFixture(t, `[{"id":1,"enabled":false,"url":"u"}]`, true)
+
+	if err := g.CreateMirror([]string{"corporate/wiki"}); err == nil {
+		t.Error("expected an error for a project that already has a mirror")
+	}
+	if strings.Contains(strings.Join(*calls, "\n"), "POST /projects/7/remote_mirrors") {
+		t.Error("no mirror must be created for a project that has one")
+	}
+}
+
+func TestCreateMirrorKeepsGoingAfterAFailure(t *testing.T) {
+	g, calls := newMirrorFixture(t, `[]`, true)
+
+	err := g.CreateMirror([]string{"does/not-exist", "corporate/wiki"})
+	if err == nil {
+		t.Error("expected the failure to be reported")
+	}
+	if !strings.Contains(strings.Join(*calls, "\n"), "POST /projects/7/remote_mirrors") {
+		t.Error("the second project must still be processed")
+	}
+}

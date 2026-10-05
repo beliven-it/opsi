@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"opsi/helpers"
 	"os"
 	"regexp"
@@ -125,6 +126,78 @@ func (g *gitlab) UpdateMirroring() error {
 	}
 
 	return errors.Join(failures...)
+}
+
+// CreateMirror sets up the mirroring for existing projects, given as numeric
+// ID or full path. Projects are processed independently: failures are
+// reported at the end instead of stopping the run.
+func (g *gitlab) CreateMirror(projects []string) error {
+	var failures []error
+	for _, ref := range projects {
+		name, err := g.createMirrorForProject(ref)
+		if err != nil {
+			fmt.Printf("Error when creating mirroring for %s: %v\n", ref, err)
+			failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+			continue
+		}
+		fmt.Println("Mirroring created for", name)
+	}
+
+	return errors.Join(failures...)
+}
+
+func (g *gitlab) createMirrorForProject(ref string) (string, error) {
+	response, err := g.request("GET", "/projects/"+url.PathEscape(ref), nil, nil)
+	if err != nil {
+		return ref, err
+	}
+
+	var project struct {
+		ID                int    `json:"id"`
+		Name              string `json:"name"`
+		Path              string `json:"path"`
+		PathWithNamespace string `json:"path_with_namespace"`
+	}
+	if err := json.Unmarshal(response, &project); err != nil {
+		return ref, err
+	}
+
+	// A project that already has a mirror (enabled or not) is the job
+	// of the update command, not of this one.
+	_, hasMirror, err := g.checkMirroringExistence(project.ID)
+	if err != nil {
+		return project.PathWithNamespace, err
+	}
+	if hasMirror {
+		return project.PathWithNamespace, errors.New("the project already has a mirror, use `opsi gitlab update mirroring`")
+	}
+
+	// Create the destination project only when it is not there yet.
+	if !g.mirrorProjectExists(project.Path) {
+		if err := g.setupMirrorProject(project.Name, project.Path, g.mirror.GroupID); err != nil {
+			return project.PathWithNamespace, fmt.Errorf("cannot create the mirror project: %w", err)
+		}
+	}
+
+	if err := g.enableMirrorWithRetry(project.ID, project.Path); err != nil {
+		return project.PathWithNamespace, err
+	}
+
+	return project.PathWithNamespace, nil
+}
+
+// mirrorProjectExists checks the destination project on the mirror instance.
+// group_path is "host/group[/subgroup]" so the host is stripped.
+func (g *gitlab) mirrorProjectExists(path string) bool {
+	parts := strings.SplitN(g.mirror.GroupPath, "/", 2)
+	if len(parts) < 2 {
+		return false
+	}
+
+	fullPath := parts[1] + "/" + path
+	_, err := g.mirrorRequest("GET", "/projects/"+url.PathEscape(fullPath), nil, nil)
+
+	return err == nil
 }
 
 // mirrorProjectName extracts the repository name from a mirror URL

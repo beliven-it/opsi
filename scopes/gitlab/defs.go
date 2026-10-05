@@ -27,6 +27,7 @@ type Gitlab interface {
 	BulkSettings(*chan string) error
 	Deprovionioning(string) error
 	UpdateMirroring() error
+	CreateMirror([]string) error
 	UpdateCleanUpPolicy(string) error
 }
 
