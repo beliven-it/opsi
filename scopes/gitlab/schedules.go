@@ -392,36 +392,62 @@ func describeSchedule(schedule gitlabPipelineSchedule) string {
 	return description
 }
 
-// scheduleLine is the line shown for a schedule: a project can have more
+// scheduleLabel names a schedule in the output: a project can have more
 // schedules with the same cron, the description tells them apart.
-func scheduleLine(projectPath string, schedule gitlabPipelineSchedule) string {
-	label := projectPath
+func scheduleLabel(projectPath string, schedule gitlabPipelineSchedule) string {
 	if schedule.Description != "" {
-		label = fmt.Sprintf("%s [%s]", projectPath, schedule.Description)
+		return fmt.Sprintf("%s [%s]", projectPath, schedule.Description)
 	}
 
-	return fmt.Sprintf("%s: %s", label, describeSchedule(schedule))
+	return projectPath
+}
+
+// scheduleReport is what happened to a schedule, shown as a row of a table.
+type scheduleReport struct {
+	label  string
+	detail string
+	status string
+	// how the status is styled: "done", "pending", "failed" or "" for neutral
+	kind string
+}
+
+// row is the report as the cells of a table, with the status styled
+func (r scheduleReport) row() []string {
+	status := r.status
+	switch r.kind {
+	case "done":
+		status = ui.Green(status)
+	case "pending":
+		status = ui.Yellow(status)
+	case "failed":
+		status = ui.Red(status)
+	default:
+		status = ui.Dim(status)
+	}
+
+	return []string{r.label, r.detail, status}
 }
 
 // updateProjectSchedules fixes the active schedules of a project that lost
-// their owner. It returns the lines to print and the failures. Inactive
-// schedules are never considered, and nothing is created or activated.
-// A project whose schedules cannot be read (typically the pipelines are
-// disabled) has nothing to fix: it is only mentioned when asked by name.
-func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabScheduleOwner, dryRun bool, byName bool) ([]string, []error) {
-	lines := []string{}
+// their owner. It returns what happened to each schedule and the failures.
+// Inactive schedules are never considered, and nothing is created or
+// activated. A project whose schedules cannot be read (typically the
+// pipelines are disabled) has nothing to fix: it is only mentioned when
+// asked by name.
+func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabScheduleOwner, dryRun bool, byName bool) ([]scheduleReport, []error) {
+	reports := []scheduleReport{}
 	failures := []error{}
 
 	schedules, err := g.listSchedules(project.ID)
 	if err != nil && strings.Contains(err.Error(), "403") {
 		if byName {
-			lines = append(lines, fmt.Sprintf("%s: the schedules cannot be read (pipelines disabled?)", project.PathWithNamespace))
+			reports = append(reports, scheduleReport{label: project.PathWithNamespace, status: "the schedules cannot be read (pipelines disabled?)"})
 		}
-		return lines, failures
+		return reports, failures
 	}
 	if err != nil {
-		lines = append(lines, fmt.Sprintf("Error when reading the schedules of %s: %v", project.PathWithNamespace, err))
-		return lines, append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
+		reports = append(reports, scheduleReport{label: project.PathWithNamespace, status: fmt.Sprintf("error when reading the schedules: %v", err), kind: "failed"})
+		return reports, append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
 	}
 
 	for _, schedule := range schedules {
@@ -429,27 +455,29 @@ func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabSchedu
 			continue
 		}
 
-		line := scheduleLine(project.PathWithNamespace, schedule)
+		report := scheduleReport{label: scheduleLabel(project.PathWithNamespace, schedule), detail: describeSchedule(schedule)}
 
 		switch {
 		case schedule.Owner != nil && schedule.Owner.ID == me.ID:
-			lines = append(lines, line+": already yours")
+			report.status = "already yours"
 		case schedule.Owner != nil && schedule.Owner.State == "active":
-			lines = append(lines, line+": left alone")
+			report.status = "left alone"
 		case dryRun:
-			lines = append(lines, line+": would take ownership")
+			report.status, report.kind = "would take ownership", "pending"
 		default:
 			_, err := g.request("POST", fmt.Sprintf("/projects/%d/pipeline_schedules/%d/take_ownership", project.ID, schedule.ID), nil, nil)
 			if err != nil {
-				lines = append(lines, fmt.Sprintf("%s: error when taking ownership: %v", line, err))
+				report.status, report.kind = fmt.Sprintf("error when taking ownership: %v", err), "failed"
 				failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
-				continue
+			} else {
+				report.status, report.kind = "ownership taken", "done"
 			}
-			lines = append(lines, line+": ownership taken")
 		}
+
+		reports = append(reports, report)
 	}
 
-	return lines, failures
+	return reports, failures
 }
 
 // UpdateSchedule gives to the user of the token the ownership of the active
@@ -493,7 +521,7 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 		}
 	}
 
-	results := make([][]string, len(targets))
+	results := make([][]scheduleReport, len(targets))
 	var (
 		mu   sync.Mutex
 		wg   sync.WaitGroup
@@ -508,11 +536,11 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 			defer wg.Done()
 			defer func() { <-slots }()
 
-			lines, errs := g.updateProjectSchedules(project, me, dryRun, len(projects) > 0)
+			reports, errs := g.updateProjectSchedules(project, me, dryRun, len(projects) > 0)
 
 			mu.Lock()
 			defer mu.Unlock()
-			results[i] = lines
+			results[i] = reports
 			failures = append(failures, errs...)
 			done++
 			ui.Progress("Checking schedules... %d/%d", done, len(targets))
@@ -522,16 +550,17 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 	wg.Wait()
 	ui.EndProgress()
 
-	found := 0
-	for _, lines := range results {
-		found += len(lines)
-		for _, line := range lines {
-			ui.Print("%s", line)
+	rows := [][]string{}
+	for _, reports := range results {
+		for _, report := range reports {
+			rows = append(rows, report.row())
 		}
 	}
 
-	if found == 0 {
+	if len(rows) == 0 {
 		ui.Info("No active schedules found")
+	} else {
+		ui.Table(rows)
 	}
 
 	return errors.Join(failures...)

@@ -83,3 +83,14 @@ func TestTruncate(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestTable(t *testing.T) {
+	o, _ := capture(t, false)
+
+	Table([][]string{{"a", "long cell", "x"}, {"bbb", "c", "y"}})
+
+	want := "  a    long cell  x\n  bbb  c          y\n"
+	if got := o.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

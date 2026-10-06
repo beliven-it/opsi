@@ -262,9 +262,11 @@ func (o *onePassword) Deprovisioning(userEmail string, dryRun bool) error {
 
 	if dryRun {
 		ui.Info("Dry run, these users would be deleted:")
+		rows := [][]string{}
 		for _, user := range userToDelete {
-			ui.Item("%s (%s)", user.Name, user.Email)
+			rows = append(rows, []string{user.Name, user.Email})
 		}
+		ui.Table(rows)
 		return nil
 	}
 

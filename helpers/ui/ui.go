@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"text/tabwriter"
 )
 
 const (
@@ -107,9 +108,23 @@ func Item(format string, args ...any) {
 	line(out, outTerminal, "", "", "  %s", fmt.Sprintf(format, args...))
 }
 
-// Dim and Bold return a text styled for stdout, to compose a line
-func Dim(text string) string  { return paint(outTerminal, gray, text) }
-func Bold(text string) string { return paint(outTerminal, bold, text) }
+// Table writes the rows aligned in columns, indented like the items. The last
+// cell of a row is not padded, so it can carry a style.
+func Table(rows [][]string) {
+	EndProgress()
+	writer := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	for _, row := range rows {
+		fmt.Fprintf(writer, "  %s\n", strings.Join(row, "\t"))
+	}
+	writer.Flush()
+}
+
+// Red, Yellow, Green, Dim and Bold return a text styled for stdout, to compose a line
+func Red(text string) string    { return paint(outTerminal, red, text) }
+func Yellow(text string) string { return paint(outTerminal, yellow, text) }
+func Green(text string) string  { return paint(outTerminal, green, text) }
+func Dim(text string) string    { return paint(outTerminal, gray, text) }
+func Bold(text string) string   { return paint(outTerminal, bold, text) }
 
 var progressActive bool
 

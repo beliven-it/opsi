@@ -1323,9 +1323,11 @@ func (g *gitlab) Deprovisioning(username string, dryRun bool) error {
 
 	if dryRun {
 		ui.Info("Dry run, %q would be removed from:", username)
+		rows := [][]string{}
 		for _, m := range memberships {
-			ui.Item("%s: %s", strings.ToLower(m.SourceType), m.SourceName)
+			rows = append(rows, []string{strings.ToLower(m.SourceType), m.SourceName})
 		}
+		ui.Table(rows)
 		return nil
 	}
 
@@ -1490,25 +1492,26 @@ func (g *gitlab) ListGroupAccessTokens(expiringDays int) error {
 			continue
 		}
 
-		lines := []string{}
+		rows := [][]string{}
 		for _, token := range results[i].tokens {
 			expiration, show := tokenExpiration(token, now, expiringDays)
 			if !show {
 				continue
 			}
-			lines = append(lines, fmt.Sprintf("  - %s [%s] %s", token.Name, strings.Join(token.Scopes, ", "), expiration))
+			if strings.HasPrefix(expiration, "EXPIRED") {
+				expiration = ui.Red(expiration)
+			}
+			rows = append(rows, []string{token.Name, strings.Join(token.Scopes, ", "), expiration})
 		}
 
-		if len(lines) == 0 {
+		if len(rows) == 0 {
 			continue
 		}
 
 		groupsShown++
-		tokensShown += len(lines)
+		tokensShown += len(rows)
 		ui.Section("%s %s", fullPath, ui.Dim("("+webURL+")"))
-		for _, line := range lines {
-			ui.Print("%s", line)
-		}
+		ui.Table(rows)
 	}
 
 	ui.Blank()
