@@ -219,11 +219,13 @@ func TestUpdateSchedule(t *testing.T) {
 			  {"id":1,"cron":"0 9 * * 1","ref":"refs/heads/main","active":true,"owner":{"id":10,"username":"cicd","state":"active"}},
 			  {"id":2,"cron":"0 10 * * 2","ref":"refs/heads/main","active":true,"owner":{"id":20,"username":"gone","state":"blocked"}},
 			  {"id":3,"cron":"0 11 * * 3","ref":"refs/heads/main","active":false,"owner":null},
-			  {"id":4,"cron":"0 12 * * 4","ref":"refs/heads/main","active":true,"owner":{"id":30,"username":"other","state":"active"}}]`)
+			  {"id":4,"cron":"0 12 * * 4","ref":"refs/heads/main","active":true,"owner":{"id":30,"username":"other","state":"active"}},
+			  {"id":5,"cron":"0 13 * * 5","ref":"refs/heads/main","active":true,"owner":{"id":40,"username":"left","state":"deactivated"}},
+			  {"id":6,"cron":"0 14 * * 5","ref":"refs/heads/main","active":true,"owner":{"id":50,"username":"banned","state":"blocked"}}]`)
 		case r.URL.Path == "/projects/2/pipeline_schedules":
 			fmt.Fprint(w, `[]`)
 		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/take_ownership"):
-			if r.URL.Path == "/projects/1/pipeline_schedules/4/take_ownership" {
+			if r.URL.Path == "/projects/1/pipeline_schedules/6/take_ownership" {
 				w.WriteHeader(http.StatusForbidden)
 				fmt.Fprint(w, `{"message":"403 Forbidden"}`)
 				return
@@ -249,15 +251,15 @@ func TestUpdateSchedule(t *testing.T) {
 		t.Errorf("dry run took ownership of %v", taken)
 	}
 
-	// Schedules already owned are left alone, the others are taken
-	// (including the one with no owner and the inactive one); a failure
-	// is reported without stopping the rest
+	// Only the schedules that lost their owner are taken (blocked or missing
+	// owner); the ones of an active user, mine included, are left alone.
+	// A failure is reported without stopping the rest
 	err := g.UpdateSchedule([]string{"corporate/app", "corporate/empty"}, false)
 	if err == nil || !strings.Contains(err.Error(), "corporate/app") {
-		t.Errorf("expected the failure on schedule 4, got %v", err)
+		t.Errorf("expected the failure on schedule 6, got %v", err)
 	}
 
-	want := "/projects/1/pipeline_schedules/2/take_ownership,/projects/1/pipeline_schedules/3/take_ownership"
+	want := "/projects/1/pipeline_schedules/2/take_ownership,/projects/1/pipeline_schedules/3/take_ownership,/projects/1/pipeline_schedules/5/take_ownership"
 	if got := strings.Join(taken, ","); got != want {
 		t.Errorf("took ownership of %q, want %q", got, want)
 	}

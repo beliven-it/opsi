@@ -11,13 +11,13 @@ import (
 var gitlabScheduleUpdateCmd = &cobra.Command{
 	Use:   "update {project}...",
 	Args:  cobra.MinimumNArgs(1),
-	Short: "Take the ownership of the pipeline schedules of Gitlab projects",
-	Long: `Take the ownership of the pipeline schedules of one or more Gitlab projects.
+	Short: "Fix the pipeline schedules of Gitlab projects that lost their owner",
+	Long: `Fix the pipeline schedules of one or more Gitlab projects that lost their owner.
 Each project can be given as numeric ID or as full path.
 
 A schedule runs as its owner, so it stops when the owner is blocked, deactivated
-or removed. This command gives the schedules to the user of the token, if they
-belong to someone else. Cron, branch and description are not touched.
+or removed. This command gives those schedules to the user of the token.
+The schedules of an active user are left alone, as cron, branch and description.
 Use --dry-run to only see the schedules, with their owner.`,
 	Example: `
   Show the schedules of a project and who owns them
@@ -25,7 +25,7 @@ Use --dry-run to only see the schedules, with their owner.`,
 
   ---
 
-  Take the ownership of the schedules of more projects, by path or ID
+  Fix the schedules of more projects, by path or ID
   opsi gitlab schedule update corporate/wiki/beliven-wiki 1234
 	`,
 	Run: func(cmd *cobra.Command, args []string) {

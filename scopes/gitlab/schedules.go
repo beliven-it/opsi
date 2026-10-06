@@ -394,10 +394,11 @@ func describeSchedule(schedule gitlabPipelineSchedule) string {
 }
 
 // UpdateSchedule gives to the user of the token the ownership of the pipeline
-// schedules of the projects (numeric ID or full path), the ones whose owner is
-// someone else, is blocked, or does not exist anymore. A schedule runs as its
-// owner, so it stops when the owner goes away. The cron, the branch and the
-// description are not touched. With dryRun it only shows the schedules.
+// schedules of the projects (numeric ID or full path) that have lost their
+// owner: the owner does not exist anymore, is blocked or is deactivated. A
+// schedule runs as its owner, so it would not run anymore. The schedules of an
+// active user are left alone, as the cron, the branch and the description.
+// With dryRun it only shows the schedules.
 func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
 	response, err := g.request("GET", "/user", nil, nil)
 	if err != nil {
@@ -436,6 +437,8 @@ func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
 			switch {
 			case schedule.Owner != nil && schedule.Owner.ID == me.ID:
 				fmt.Printf("%s: already yours\n", line)
+			case schedule.Owner != nil && schedule.Owner.State == "active":
+				fmt.Printf("%s: left alone\n", line)
 			case dryRun:
 				fmt.Printf("%s: would take ownership\n", line)
 			default:
