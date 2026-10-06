@@ -9,13 +9,10 @@ import (
 // projectCmd represents the project command
 var gitlabSettingsBulkCmd = &cobra.Command{
 	Use:   "bulk",
-	Short: "Update gitlab settings projects",
-	Long:  "Update gitlab settings projects",
+	Short: "Apply the default settings to all Gitlab projects",
+	Long:  "Apply the default settings to all Gitlab projects.",
 	Example: `
-  Update all projects
-  opsi gitlab settings bulk
-
-  Update all projects
+  Apply the default settings to all projects
   opsi gitlab settings bulk
 	`,
 	Run: func(cmd *cobra.Command, args []string) {

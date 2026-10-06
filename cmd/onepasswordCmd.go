@@ -5,11 +5,12 @@ import (
 )
 
 var onepasswordCmd = &cobra.Command{
-	Use:   "1password {verb}",
-	Args:  cobra.ExactArgs(1),
-	Short: "The 1password scope commands",
-	Long:  "The 1password scope commands",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Use:   "1password",
+	Args:  cobra.NoArgs,
+	Short: "Manage 1password users and vaults",
+	Long: `Manage 1password users and vaults.
+It needs the 1password CLI (op) installed and signed in.`,
+	Run: showHelp,
 }
 
 func init() {

@@ -5,11 +5,11 @@ import (
 )
 
 var gitlabGroupCmd = &cobra.Command{
-	Use:   "group {verb}",
-	Args:  cobra.ExactArgs(1),
+	Use:   "group",
+	Args:  cobra.NoArgs,
 	Short: "Manage Gitlab groups",
 	Long:  "Manage Gitlab groups",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run:   showHelp,
 }
 
 func init() {

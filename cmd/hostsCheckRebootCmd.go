@@ -8,8 +8,12 @@ import (
 
 var hostsCheckRebootCmd = &cobra.Command{
 	Use:   "check-reboot",
-	Short: "Check hosts need to reboot",
-	Long:  "Check hosts need to reboot. The list of hosts are the ones of hssh CLI",
+	Short: "Check which hosts need to reboot",
+	Long:  "Check which hosts need to reboot. The list of hosts is the one of the hssh CLI.",
+	Example: `
+  Check all the hosts
+  opsi hosts check-reboot
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Check reboot
 		err := hosts.CheckReboot()

@@ -5,11 +5,11 @@ import (
 )
 
 var gitlabMirrorCmd = &cobra.Command{
-	Use:   "mirror {verb}",
-	Args:  cobra.ExactArgs(1),
+	Use:   "mirror",
+	Args:  cobra.NoArgs,
 	Short: "Manage the mirroring of Gitlab projects",
 	Long:  "Manage the mirroring of Gitlab projects",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run:   showHelp,
 }
 
 func init() {

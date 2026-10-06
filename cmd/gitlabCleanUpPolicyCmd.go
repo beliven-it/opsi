@@ -5,11 +5,11 @@ import (
 )
 
 var gitlabCleanUpPolicyCmd = &cobra.Command{
-	Use:   "cleanup-policy {verb}",
-	Args:  cobra.ExactArgs(1),
+	Use:   "cleanup-policy",
+	Args:  cobra.NoArgs,
 	Short: "Manage the cleanup policy of Gitlab projects",
 	Long:  "Manage the cleanup policy of Gitlab projects",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run:   showHelp,
 }
 
 func init() {
