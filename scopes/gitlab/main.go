@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -85,18 +86,18 @@ func (g *gitlab) UpdateMirroring() error {
 		}
 	}
 
-	ui.EndProgress()
-	ui.Print("Found %d projects: %d with a mirror, %d without",
+	ui.Step("Checked %d projects: %d with a mirror, %d without",
 		len(projectsList), len(projectsIDWithMirroring), len(withoutMirroring))
 	if len(withoutMirroring) > 0 {
 		ui.Warn("Skipped (no mirror):")
 		for _, name := range withoutMirroring {
-			ui.Item("%s", name)
+			ui.Item("%s", ui.Cyan(name))
 		}
 	}
 
 	//Recreate mirroring
 	var failures []error
+	updated := 0
 	for i := 0; i < len(projectsIDWithMirroring) && i < len(mirroringProjects); i++ {
 		projectID := projectsIDWithMirroring[i]
 		mirroringProjectID := mirroringProjects[i].ID
@@ -123,8 +124,12 @@ func (g *gitlab) UpdateMirroring() error {
 			failures = append(failures, fmt.Errorf("%s: %w", projectName, err))
 			continue
 		}
-		ui.Success("Mirroring updated for %s", projectName)
+		updated++
+		ui.Success("Mirroring updated for %s", ui.Cyan(projectName))
 	}
+
+	ui.Blank()
+	ui.Info("Updated %d of %d mirrors, %d failed", updated, len(projectsIDWithMirroring), len(failures))
 
 	return errors.Join(failures...)
 }
@@ -134,6 +139,7 @@ func (g *gitlab) UpdateMirroring() error {
 // instead of stopping the run.
 func (g *gitlab) CreateMirror(projects []int) error {
 	var failures []error
+	created := 0
 	for _, id := range projects {
 		name, err := g.createMirrorForProject(id)
 		if err != nil {
@@ -141,7 +147,13 @@ func (g *gitlab) CreateMirror(projects []int) error {
 			failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 			continue
 		}
-		ui.Success("Mirroring created for %s", name)
+		created++
+		ui.Success("Mirroring created for %s", ui.Cyan(name))
+	}
+
+	if len(projects) > 1 {
+		ui.Blank()
+		ui.Info("Created %d of %d mirrors, %d failed", created, len(projects), len(failures))
 	}
 
 	return errors.Join(failures...)
@@ -235,7 +247,6 @@ func (g *gitlab) enableMirrorWithRetry(projectID int, projectName string) error 
 
 func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
 	ui.Progress("Retrieving projects list...")
-	defer ui.EndProgress()
 	var allProjects []gitlabProjectResponse
 	nextPage := 1
 	perPage := 100
@@ -264,6 +275,8 @@ func (g *gitlab) listProjects() ([]gitlabProjectResponse, error) {
 			break // No more pages
 		}
 	}
+
+	ui.Step("Retrieved %d projects", len(allProjects))
 
 	return allProjects, nil
 }
@@ -418,7 +431,7 @@ func (g *gitlab) walkThroughRequest(endpoint string, entities []gitlabEntityWith
 
 	// If the list obtained is empty return the list of the items collected until now.
 	if len(list) == 0 {
-		ui.EndProgress()
+		ui.Step("Retrieved %d items from %s", len(entities), ui.Cyan(strings.TrimPrefix(endpoint, "/")))
 		return entities, nil
 	}
 
@@ -710,6 +723,9 @@ func (g *gitlab) CreateEnvs(projectID string, env string, envPath string) error 
 	// Close the file once the function is finish
 	defer envFile.Close()
 
+	var failures []error
+	created := 0
+
 	// Create a scanner for read the file line by line
 	scanner := bufio.NewScanner(envFile)
 	scanner.Split(bufio.ScanLines)
@@ -763,10 +779,20 @@ func (g *gitlab) CreateEnvs(projectID string, env string, envPath string) error 
 		}
 
 		// Create the environment variable
-		g.request("POST", fmt.Sprintf("/projects/%s/variables", projectID), payload, nil)
+		_, err := g.request("POST", fmt.Sprintf("/projects/%s/variables", projectID), payload, nil)
+		if err != nil {
+			ui.Error("Error when creating %s: %v", key, err)
+			failures = append(failures, fmt.Errorf("%s: %w", key, err))
+			continue
+		}
+		created++
+		ui.Success("Created %s", ui.Cyan(key))
 	}
 
-	return nil
+	ui.Blank()
+	ui.Info("Created %d variables, %d failed", created, len(failures))
+
+	return errors.Join(failures...)
 }
 
 func (g *gitlab) ListEnvs(projectID string, env string) error {
@@ -818,7 +844,11 @@ func (g *gitlab) DeleteEnvs(projectID string, env string) error {
 		if err != nil {
 			return err
 		}
+		ui.Success("Deleted %s", ui.Cyan(variable.Key))
 	}
+
+	ui.Blank()
+	ui.Info("Deleted %d variables", len(variables))
 
 	return nil
 }
@@ -851,7 +881,6 @@ func (g *gitlab) listGroups() ([]map[string]any, error) {
 	perPage := 100
 
 	ui.Progress("Retrieving groups list...")
-	defer ui.EndProgress()
 
 	for {
 		endpoint := fmt.Sprintf("/groups?all_available=true&per_page=%d&page=%d", perPage, page)
@@ -874,6 +903,8 @@ func (g *gitlab) listGroups() ([]map[string]any, error) {
 			break
 		}
 	}
+
+	ui.Step("Retrieved %d groups", len(allGroups))
 
 	return allGroups, nil
 }
@@ -998,6 +1029,7 @@ func (g *gitlab) GroupSettingsDrift(groupID int) ([]GroupDrift, error) {
 
 func (g *gitlab) ApplyGroupSettings(drifts []GroupDrift, channel *chan string) error {
 	wg := sync.WaitGroup{}
+	var updated, failed atomic.Int32
 
 	for _, drift := range drifts {
 		wg.Add(1)
@@ -1006,15 +1038,20 @@ func (g *gitlab) ApplyGroupSettings(drifts []GroupDrift, channel *chan string) e
 
 			err := g.applyGroupSettings(drift.ID, drift.Changes)
 			if err != nil {
+				failed.Add(1)
 				*channel <- fmt.Sprintf("Error on update settings for group %s: %s", drift.FullPath, err.Error())
 				return
 			}
 
+			updated.Add(1)
 			*channel <- fmt.Sprintf("Settings updated for group %s", drift.FullPath)
 		}(drift)
 	}
 
 	wg.Wait()
+
+	*channel <- ""
+	*channel <- fmt.Sprintf("Updated %d of %d groups, %d failed", updated.Load(), len(drifts), failed.Load())
 
 	return nil
 }
@@ -1235,6 +1272,10 @@ func (g *gitlab) BulkSettings(channel *chan string) error {
 	}
 
 	wg.Wait()
+
+	*channel <- ""
+	*channel <- fmt.Sprintf("Processed %d projects", len(projects))
+
 	return nil
 }
 
@@ -1286,7 +1327,7 @@ func (g *gitlab) listUserMemberships(userID int) ([]gitlabMembership, error) {
 		}
 
 		if len(list) == 0 {
-			ui.EndProgress()
+			ui.Step("Retrieved %d memberships", len(memberships))
 			return memberships, nil
 		}
 
@@ -1325,9 +1366,11 @@ func (g *gitlab) Deprovisioning(username string, dryRun bool) error {
 		ui.Info("Dry run, %q would be removed from:", username)
 		rows := [][]string{}
 		for _, m := range memberships {
-			rows = append(rows, []string{strings.ToLower(m.SourceType), m.SourceName})
+			rows = append(rows, []string{ui.Dim(strings.ToLower(m.SourceType)), ui.Cyan(m.SourceName)})
 		}
 		ui.Table(rows)
+		ui.Blank()
+		ui.Info("%d memberships would be removed", len(memberships))
 		return nil
 	}
 
@@ -1477,7 +1520,7 @@ func (g *gitlab) ListGroupAccessTokens(expiringDays int) error {
 	}
 
 	wg.Wait()
-	ui.EndProgress()
+	ui.Step("Checked the access tokens of %d groups", len(groups))
 
 	now := time.Now()
 	tokensShown, groupsShown := 0, 0
@@ -1498,10 +1541,13 @@ func (g *gitlab) ListGroupAccessTokens(expiringDays int) error {
 			if !show {
 				continue
 			}
-			if strings.HasPrefix(expiration, "EXPIRED") {
+			switch {
+			case strings.HasPrefix(expiration, "EXPIRED"):
 				expiration = ui.Red(expiration)
+			case strings.HasPrefix(expiration, "expires today"):
+				expiration = ui.Yellow(expiration)
 			}
-			rows = append(rows, []string{token.Name, strings.Join(token.Scopes, ", "), expiration})
+			rows = append(rows, []string{ui.Cyan(token.Name), ui.Dim(strings.Join(token.Scopes, ", ")), expiration})
 		}
 
 		if len(rows) == 0 {
@@ -1510,12 +1556,12 @@ func (g *gitlab) ListGroupAccessTokens(expiringDays int) error {
 
 		groupsShown++
 		tokensShown += len(rows)
-		ui.Section("%s %s", fullPath, ui.Dim("("+webURL+")"))
+		ui.Section("%s %s", ui.Cyan(fullPath), ui.Dim("("+webURL+")"))
 		ui.Table(rows)
 	}
 
 	ui.Blank()
-	ui.Info("Found %d tokens in %d groups (%d groups checked)", tokensShown, groupsShown, len(groups))
+	ui.Info("Found %d tokens in %d groups", tokensShown, groupsShown)
 
 	if len(skipped) > 0 {
 		ui.Warn("Skipped %d groups (no permission or error):", len(skipped))

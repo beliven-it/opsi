@@ -259,7 +259,7 @@ func (g *gitlab) loadSchedules() (scheduleLoad, error) {
 	}
 
 	wg.Wait()
-	ui.EndProgress()
+	ui.Step("Checked the schedules of %d projects", len(projects))
 
 	return load, nil
 }
@@ -321,6 +321,7 @@ func (g *gitlab) findProject(id int) (scheduleProject, error) {
 func (g *gitlab) CreateSchedule(projects []int) error {
 	var failures []error
 	var load scheduleLoad
+	created, skipped := 0, 0
 
 	for _, id := range projects {
 		project, err := g.findProject(id)
@@ -345,7 +346,8 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 			}
 		}
 		if active != nil {
-			ui.Info("Skipped %s: it already has an active schedule (%s, on %s)", project.PathWithNamespace, active.Cron, active.Ref)
+			skipped++
+			ui.Info("Skipped %s: it already has an active schedule (%s, on %s)", ui.Cyan(project.PathWithNamespace), active.Cron, active.Ref)
 			continue
 		}
 
@@ -364,7 +366,13 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 			continue
 		}
 
-		ui.Success("Schedule created for %s: %s", project.PathWithNamespace, description)
+		created++
+		ui.Success("Schedule created for %s: %s", ui.Cyan(project.PathWithNamespace), description)
+	}
+
+	if len(projects) > 1 {
+		ui.Blank()
+		ui.Info("Created %d schedules for %d projects, %d skipped, %d failed", created, len(projects), skipped, len(failures))
 	}
 
 	return errors.Join(failures...)
@@ -425,7 +433,7 @@ func (r scheduleReport) row() []string {
 		status = ui.Dim(status)
 	}
 
-	return []string{r.label, r.detail, status}
+	return []string{ui.Cyan(r.label), r.detail, status}
 }
 
 // updateProjectSchedules fixes the active schedules of a project that lost
@@ -548,19 +556,31 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 	}
 
 	wg.Wait()
-	ui.EndProgress()
 
 	rows := [][]string{}
+	pending, done, failed := 0, 0, 0
 	for _, reports := range results {
 		for _, report := range reports {
 			rows = append(rows, report.row())
+			switch report.kind {
+			case "pending":
+				pending++
+			case "done":
+				done++
+			case "failed":
+				failed++
+			}
 		}
 	}
+
+	ui.Step("Checked %d projects: %d active schedules", len(targets), len(rows))
 
 	if len(rows) == 0 {
 		ui.Info("No active schedules found")
 	} else {
 		ui.Table(rows)
+		ui.Blank()
+		ui.Info("%d left alone or already yours, %d to fix, %d fixed, %d failed", len(rows)-pending-done-failed, pending, done, failed)
 	}
 
 	return errors.Join(failures...)

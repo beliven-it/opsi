@@ -157,24 +157,26 @@ func (o *host) CheckReboot() error {
 		}
 	}
 
-	ui.Section("Rebootable")
+	ui.Step("Checked %d hosts, %d ignored", len(hosts), len(listIgnored))
+
+	ui.Section("%s", ui.Yellow(fmt.Sprintf("Rebootable (%d)", len(listRebootable))))
 	for _, host := range listRebootable {
-		ui.Item("%s", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
-	ui.Section("Not rebootable")
+	ui.Section("%s", ui.Green(fmt.Sprintf("Not rebootable (%d)", len(listUnrebootable))))
 	for _, host := range listUnrebootable {
-		ui.Item("%s", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
-	ui.Section("SSH errors")
+	ui.Section("%s", ui.Red(fmt.Sprintf("SSH errors (%d)", len(listErrors))))
 	for _, host := range listErrors {
-		ui.Item("%s", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
-	ui.Section("Ignored for other errors")
+	ui.Section("%s", ui.Dim(fmt.Sprintf("Ignored for other errors (%d)", len(listIgnored))))
 	for _, host := range listIgnored {
-		ui.Item("%s", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
 	return nil

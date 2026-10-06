@@ -18,7 +18,9 @@ var gitlabSettingsBulkCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create the output channel for the messages
 		channel := make(chan string)
+		printed := make(chan struct{})
 		go func() {
+			defer close(printed)
 			for item := range channel {
 				ui.Print("%s", item)
 			}
@@ -26,6 +28,8 @@ var gitlabSettingsBulkCmd = &cobra.Command{
 
 		// Execute bulk
 		err := gitlab.BulkSettings(&channel)
+		close(channel)
+		<-printed
 		if err != nil {
 			ui.Fatal(err)
 		}

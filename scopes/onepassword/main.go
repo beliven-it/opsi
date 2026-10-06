@@ -264,9 +264,11 @@ func (o *onePassword) Deprovisioning(userEmail string, dryRun bool) error {
 		ui.Info("Dry run, these users would be deleted:")
 		rows := [][]string{}
 		for _, user := range userToDelete {
-			rows = append(rows, []string{user.Name, user.Email})
+			rows = append(rows, []string{ui.Cyan(user.Name), ui.Dim(user.Email)})
 		}
 		ui.Table(rows)
+		ui.Blank()
+		ui.Info("%d users would be deleted", len(userToDelete))
 		return nil
 	}
 
@@ -279,7 +281,7 @@ func (o *onePassword) Deprovisioning(userEmail string, dryRun bool) error {
 		}
 
 		deleted++
-		ui.Success("Deleted %s (%s)", user.Name, user.Email)
+		ui.Success("Deleted %s (%s)", ui.Cyan(user.Name), user.Email)
 	}
 
 	ui.Info("Deleted %d of %d users", deleted, len(userToDelete))

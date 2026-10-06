@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
-	"text/tabwriter"
+	"unicode/utf8"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 	bold   = "\033[1m"
 	red    = "\033[31m"
 	green  = "\033[32m"
+	cyan   = "\033[36m"
 	yellow = "\033[33m"
 	gray   = "\033[90m"
 )
@@ -65,6 +67,13 @@ func Success(format string, args ...any) {
 	line(out, outTerminal, green, "✓", format, args...)
 }
 
+// Step reports a finished step of the work (what was retrieved or checked).
+// It is a message about the run, not part of the result, so it goes to stderr
+// and a redirect of stdout gets only the data.
+func Step(format string, args ...any) {
+	line(errOut, errTerminal, green, "✓", format, args...)
+}
+
 // Info reports a neutral fact, like a dry run or a nothing to do
 func Info(format string, args ...any) {
 	line(out, outTerminal, gray, "·", format, args...)
@@ -108,21 +117,48 @@ func Item(format string, args ...any) {
 	line(out, outTerminal, "", "", "  %s", fmt.Sprintf(format, args...))
 }
 
-// Table writes the rows aligned in columns, indented like the items. The last
-// cell of a row is not padded, so it can carry a style.
-func Table(rows [][]string) {
-	EndProgress()
-	writer := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	for _, row := range rows {
-		fmt.Fprintf(writer, "  %s\n", strings.Join(row, "\t"))
-	}
-	writer.Flush()
+var ansi = regexp.MustCompile(`\033\[[0-9;]*m`)
+
+// width is the number of characters shown, without the style codes
+func width(text string) int {
+	return utf8.RuneCountInString(ansi.ReplaceAllString(text, ""))
 }
 
-// Red, Yellow, Green, Dim and Bold return a text styled for stdout, to compose a line
+// Table writes the rows aligned in columns, indented like the items. The
+// cells may be styled: the padding is computed on what is shown.
+func Table(rows [][]string) {
+	EndProgress()
+
+	widths := []int{}
+	for _, row := range rows {
+		for i, cell := range row {
+			if i == len(widths) {
+				widths = append(widths, 0)
+			}
+			if w := width(cell); w > widths[i] {
+				widths[i] = w
+			}
+		}
+	}
+
+	for _, row := range rows {
+		var builder strings.Builder
+		builder.WriteString("  ")
+		for i, cell := range row {
+			builder.WriteString(cell)
+			if i < len(row)-1 {
+				builder.WriteString(strings.Repeat(" ", widths[i]-width(cell)+2))
+			}
+		}
+		fmt.Fprintln(out, builder.String())
+	}
+}
+
+// Red, Yellow, Green, Cyan, Dim and Bold return a text styled for stdout, to compose a line
 func Red(text string) string    { return paint(outTerminal, red, text) }
 func Yellow(text string) string { return paint(outTerminal, yellow, text) }
 func Green(text string) string  { return paint(outTerminal, green, text) }
+func Cyan(text string) string   { return paint(outTerminal, cyan, text) }
 func Dim(text string) string    { return paint(outTerminal, gray, text) }
 func Bold(text string) string   { return paint(outTerminal, bold, text) }
 

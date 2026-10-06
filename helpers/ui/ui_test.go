@@ -21,6 +21,7 @@ func TestStreams(t *testing.T) {
 	o, e := capture(t, false)
 
 	Success("created %s", "a")
+	Step("checked %d", 3)
 	Info("nothing")
 	Warn("careful")
 	Error("broken")
@@ -28,7 +29,7 @@ func TestStreams(t *testing.T) {
 	if got := o.String(); got != "✓ created a\n· nothing\n" {
 		t.Errorf("stdout = %q", got)
 	}
-	if got := e.String(); got != "! careful\n✗ broken\n" {
+	if got := e.String(); got != "✓ checked 3\n! careful\n✗ broken\n" {
 		t.Errorf("stderr = %q", got)
 	}
 }
@@ -90,6 +91,17 @@ func TestTable(t *testing.T) {
 	Table([][]string{{"a", "long cell", "x"}, {"bbb", "c", "y"}})
 
 	want := "  a    long cell  x\n  bbb  c          y\n"
+	if got := o.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestTableStyledCells(t *testing.T) {
+	o, _ := capture(t, true)
+
+	Table([][]string{{Cyan("a"), "x"}, {"bbb", "y"}})
+
+	want := "  " + cyan + "a" + reset + "    x\n  bbb  y\n"
 	if got := o.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}

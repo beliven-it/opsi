@@ -74,13 +74,17 @@ and asks for confirmation before applying.`,
 		}
 
 		channel := make(chan string)
+		printed := make(chan struct{})
 		go func() {
+			defer close(printed)
 			for item := range channel {
 				ui.Print("%s", item)
 			}
 		}()
 
 		err = gitlab.ApplyGroupSettings(drifts, &channel)
+		close(channel)
+		<-printed
 		if err != nil {
 			ui.Fatal(err)
 		}
