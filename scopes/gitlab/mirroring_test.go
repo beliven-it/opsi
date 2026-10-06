@@ -159,7 +159,7 @@ func newMirrorFixture(t *testing.T, sourceMirrors string, destinationExists bool
 	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		record(r)
 		switch {
-		case r.Method == "GET" && r.URL.EscapedPath() == "/projects/corporate%2Fwiki":
+		case r.Method == "GET" && r.URL.Path == "/projects/7":
 			fmt.Fprint(w, `{"id":7,"name":"Wiki","path":"wiki","path_with_namespace":"corporate/wiki"}`)
 		case r.Method == "GET" && r.URL.Path == "/projects/7/remote_mirrors":
 			fmt.Fprint(w, sourceMirrors)
@@ -201,7 +201,7 @@ func newMirrorFixture(t *testing.T, sourceMirrors string, destinationExists bool
 func TestCreateMirrorWithExistingDestination(t *testing.T) {
 	g, calls := newMirrorFixture(t, `[]`, true)
 
-	if err := g.CreateMirror([]string{"corporate/wiki"}); err != nil {
+	if err := g.CreateMirror([]int{7}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -217,7 +217,7 @@ func TestCreateMirrorWithExistingDestination(t *testing.T) {
 func TestCreateMirrorCreatesMissingDestination(t *testing.T) {
 	g, calls := newMirrorFixture(t, `[]`, false)
 
-	if err := g.CreateMirror([]string{"corporate/wiki"}); err != nil {
+	if err := g.CreateMirror([]int{7}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -233,7 +233,7 @@ func TestCreateMirrorCreatesMissingDestination(t *testing.T) {
 func TestCreateMirrorRefusesProjectsWithAMirror(t *testing.T) {
 	g, calls := newMirrorFixture(t, `[{"id":1,"enabled":false,"url":"u"}]`, true)
 
-	if err := g.CreateMirror([]string{"corporate/wiki"}); err == nil {
+	if err := g.CreateMirror([]int{7}); err == nil {
 		t.Error("expected an error for a project that already has a mirror")
 	}
 	if strings.Contains(strings.Join(*calls, "\n"), "POST /projects/7/remote_mirrors") {
@@ -244,7 +244,7 @@ func TestCreateMirrorRefusesProjectsWithAMirror(t *testing.T) {
 func TestCreateMirrorKeepsGoingAfterAFailure(t *testing.T) {
 	g, calls := newMirrorFixture(t, `[]`, true)
 
-	err := g.CreateMirror([]string{"does/not-exist", "corporate/wiki"})
+	err := g.CreateMirror([]int{404, 7})
 	if err == nil {
 		t.Error("expected the failure to be reported")
 	}

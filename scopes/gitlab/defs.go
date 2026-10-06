@@ -28,7 +28,7 @@ type Gitlab interface {
 	Deprovisioning(string, bool) error
 	UpdateMirroring() error
 	ListGroupAccessTokens(int) error
-	CreateMirror([]string) error
+	CreateMirror([]int) error
 	CreateSchedule([]int) error
 	UpdateSchedule([]int, bool) error
 	UpdateCleanUpPolicy(string) error
