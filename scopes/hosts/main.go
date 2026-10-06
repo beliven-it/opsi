@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"opsi/helpers/ui"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -156,24 +157,26 @@ func (o *host) CheckReboot() error {
 		}
 	}
 
-	fmt.Println("REBOOTABLE")
+	ui.Step("Checked %d hosts, %d ignored", len(hosts), len(listIgnored))
+
+	ui.Section("%s", ui.Yellow(fmt.Sprintf("Rebootable (%d)", len(listRebootable))))
 	for _, host := range listRebootable {
-		fmt.Println("-", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
-	fmt.Println("\nUN-REBOOTABLE")
+	ui.Section("%s", ui.Green(fmt.Sprintf("Not rebootable (%d)", len(listUnrebootable))))
 	for _, host := range listUnrebootable {
-		fmt.Println("-", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
-	fmt.Println("\nSSH ERRORS")
+	ui.Section("%s", ui.Red(fmt.Sprintf("SSH errors (%d)", len(listErrors))))
 	for _, host := range listErrors {
-		fmt.Println("-", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
-	fmt.Println("\nIGNORED FOR OTHER ERRORS")
+	ui.Section("%s", ui.Dim(fmt.Sprintf("Ignored for other errors (%d)", len(listIgnored))))
 	for _, host := range listIgnored {
-		fmt.Println("-", host)
+		ui.Item("%s", ui.Cyan(host))
 	}
 
 	return nil

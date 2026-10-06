@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -31,8 +30,7 @@ var gitlabEnvsListCmd = &cobra.Command{
 		// List the envs
 		err := gitlab.ListEnvs(projectID, env)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -25,11 +24,10 @@ In specific, the following entities will be created:
 	Run: func(cmd *cobra.Command, args []string) {
 		err := onepassword.Create(args[0])
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
-		fmt.Printf("Vaults created for project %s", args[0])
+		ui.Success("Vaults created for project %s", args[0])
 	},
 }
 

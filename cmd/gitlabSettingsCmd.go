@@ -5,11 +5,11 @@ import (
 )
 
 var gitlabSettingsCmd = &cobra.Command{
-	Use:   "settings {verb}",
-	Args:  cobra.ExactArgs(1),
+	Use:   "settings",
+	Args:  cobra.NoArgs,
 	Short: "Manage the settings of Gitlab projects",
 	Long:  "Manage the settings of Gitlab projects",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run:   showHelp,
 }
 
 func init() {

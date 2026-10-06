@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	// gl "opsi/scopes/gitlab"
 
@@ -13,18 +12,20 @@ import (
 // updateMirroring represents the update mirroring command
 var gitlabMirrorUpdateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update Gitlab Mirroring",
-	Long:  "This command updates mirroring for all GitLab repositories",
-
+	Short: "Update the mirroring of all Gitlab projects",
+	Long:  "Update the mirroring of all Gitlab projects that have one.",
+	Example: `
+  Update the mirroring of all projects
+  opsi gitlab mirror update
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Update mirroring
 		err := gitlab.UpdateMirroring()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
-		fmt.Println("All GitLab repositories have been successfully updated")
+		ui.Success("All GitLab repositories have been successfully updated")
 	},
 }
 

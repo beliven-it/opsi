@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"opsi/helpers"
-	"os"
+	"opsi/helpers/ui"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -37,17 +37,16 @@ and asks for confirmation before applying.`,
 
 		drifts, err := gitlab.GroupSettingsDrift(group)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
 		if len(drifts) == 0 {
-			fmt.Println("Every group already matches the default settings")
+			ui.Success("Every group already matches the default settings")
 			return
 		}
 
 		for _, drift := range drifts {
-			fmt.Printf("\n%s (#%d)\n", drift.FullPath, drift.ID)
+			ui.Section("%s %s", drift.FullPath, ui.Dim(fmt.Sprintf("#%d", drift.ID)))
 
 			keys := make([]string, 0, len(drift.Changes))
 			for key := range drift.Changes {
@@ -56,7 +55,7 @@ and asks for confirmation before applying.`,
 			sort.Strings(keys)
 
 			for _, key := range keys {
-				fmt.Printf("  %s: %v -> %v\n", key, drift.From[key], drift.Changes[key])
+				ui.Item("%s: %v -> %v", key, drift.From[key], drift.Changes[key])
 			}
 		}
 
@@ -64,7 +63,7 @@ and asks for confirmation before applying.`,
 		if len(drifts) == 1 {
 			label = "group"
 		}
-		fmt.Printf("\n%d %s to update\n", len(drifts), label)
+		ui.Section("%d %s to update", len(drifts), label)
 
 		if dryRun {
 			return
@@ -75,16 +74,19 @@ and asks for confirmation before applying.`,
 		}
 
 		channel := make(chan string)
+		printed := make(chan struct{})
 		go func() {
+			defer close(printed)
 			for item := range channel {
-				fmt.Println(item)
+				ui.Print("%s", item)
 			}
 		}()
 
 		err = gitlab.ApplyGroupSettings(drifts, &channel)
+		close(channel)
+		<-printed
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

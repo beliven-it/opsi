@@ -5,11 +5,11 @@ import (
 )
 
 var gitlabEnvsCmd = &cobra.Command{
-	Use:   "envs {verb}",
-	Args:  cobra.ExactArgs(1),
+	Use:   "envs",
+	Args:  cobra.NoArgs,
 	Short: "Manage the environment variables of a Gitlab project",
 	Long:  "Manage the environment variables of a Gitlab project",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run:   showHelp,
 }
 
 func init() {

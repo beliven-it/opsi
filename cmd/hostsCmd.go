@@ -5,11 +5,12 @@ import (
 )
 
 var hostsCmd = &cobra.Command{
-	Use:   "hosts {verb}",
-	Args:  cobra.ExactArgs(1),
-	Short: "The hosts scope commands",
-	Long:  "The hosts scope commands",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Use:   "hosts",
+	Args:  cobra.NoArgs,
+	Short: "Check the hosts of the infrastructure",
+	Long: `Check the hosts of the infrastructure.
+The list of hosts is the one of the hssh CLI.`,
+	Run: showHelp,
 }
 
 func init() {

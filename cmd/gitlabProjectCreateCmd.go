@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	gl "opsi/scopes/gitlab"
 
@@ -87,11 +86,10 @@ var gitlabProjectCreateCmd = &cobra.Command{
 		projectID, err := gitlab.CreateProject(payload)
 
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
-		fmt.Println("Created new project with ID", projectID)
+		ui.Success("Created new project with ID %d", projectID)
 	},
 }
 

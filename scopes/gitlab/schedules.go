@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"opsi/helpers/ui"
 	"strconv"
 	"strings"
 	"sync"
@@ -253,12 +254,12 @@ func (g *gitlab) loadSchedules() (scheduleLoad, error) {
 				}
 			}
 			done++
-			progress("Checking existing schedules... %d/%d", done, len(projects))
+			ui.Progress("Checking existing schedules... %d/%d", done, len(projects))
 		}(project.ID)
 	}
 
 	wg.Wait()
-	endProgress()
+	ui.Step("Checked the schedules of %d projects", len(projects))
 
 	return load, nil
 }
@@ -320,18 +321,19 @@ func (g *gitlab) findProject(id int) (scheduleProject, error) {
 func (g *gitlab) CreateSchedule(projects []int) error {
 	var failures []error
 	var load scheduleLoad
+	created, skipped := 0, 0
 
 	for _, id := range projects {
 		project, err := g.findProject(id)
 		if err != nil {
-			fmt.Printf("Error when reading project #%d: %v\n", id, err)
+			ui.Error("Error when reading project #%d: %v", id, err)
 			failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 			continue
 		}
 
 		existing, err := g.listSchedules(project.ID)
 		if err != nil {
-			fmt.Printf("Error when reading the schedules of %s: %v\n", project.PathWithNamespace, err)
+			ui.Error("Error when reading the schedules of %s: %v", project.PathWithNamespace, err)
 			failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
 			continue
 		}
@@ -344,7 +346,8 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 			}
 		}
 		if active != nil {
-			fmt.Printf("Skipped %s: it already has an active schedule (%s, on %s)\n", project.PathWithNamespace, active.Cron, active.Ref)
+			skipped++
+			ui.Info("Skipped %s: it already has an active schedule (%s, on %s)", ui.Cyan(project.PathWithNamespace), active.Cron, active.Ref)
 			continue
 		}
 
@@ -358,12 +361,18 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 
 		description, err := g.createSchedule(project.ID, project.PathWithNamespace, project.DefaultBranch, load)
 		if err != nil {
-			fmt.Printf("Error when creating the schedule for %s: %v\n", project.PathWithNamespace, err)
+			ui.Error("Error when creating the schedule for %s: %v", project.PathWithNamespace, err)
 			failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
 			continue
 		}
 
-		fmt.Printf("Schedule created for %s: %s\n", project.PathWithNamespace, description)
+		created++
+		ui.Success("Schedule created for %s: %s", ui.Cyan(project.PathWithNamespace), description)
+	}
+
+	if len(projects) > 1 {
+		ui.Blank()
+		ui.Info("Created %d schedules for %d projects, %d skipped, %d failed", created, len(projects), skipped, len(failures))
 	}
 
 	return errors.Join(failures...)
@@ -391,36 +400,62 @@ func describeSchedule(schedule gitlabPipelineSchedule) string {
 	return description
 }
 
-// scheduleLine is the line shown for a schedule: a project can have more
+// scheduleLabel names a schedule in the output: a project can have more
 // schedules with the same cron, the description tells them apart.
-func scheduleLine(projectPath string, schedule gitlabPipelineSchedule) string {
-	label := projectPath
+func scheduleLabel(projectPath string, schedule gitlabPipelineSchedule) string {
 	if schedule.Description != "" {
-		label = fmt.Sprintf("%s [%s]", projectPath, schedule.Description)
+		return fmt.Sprintf("%s [%s]", projectPath, schedule.Description)
 	}
 
-	return fmt.Sprintf("%s: %s", label, describeSchedule(schedule))
+	return projectPath
+}
+
+// scheduleReport is what happened to a schedule, shown as a row of a table.
+type scheduleReport struct {
+	label  string
+	detail string
+	status string
+	// how the status is styled: "done", "pending", "failed" or "" for neutral
+	kind string
+}
+
+// row is the report as the cells of a table, with the status styled
+func (r scheduleReport) row() []string {
+	status := r.status
+	switch r.kind {
+	case "done":
+		status = ui.Green(status)
+	case "pending":
+		status = ui.Yellow(status)
+	case "failed":
+		status = ui.Red(status)
+	default:
+		status = ui.Dim(status)
+	}
+
+	return []string{ui.Cyan(r.label), r.detail, status}
 }
 
 // updateProjectSchedules fixes the active schedules of a project that lost
-// their owner. It returns the lines to print and the failures. Inactive
-// schedules are never considered, and nothing is created or activated.
-// A project whose schedules cannot be read (typically the pipelines are
-// disabled) has nothing to fix: it is only mentioned when asked by name.
-func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabScheduleOwner, dryRun bool, byName bool) ([]string, []error) {
-	lines := []string{}
+// their owner. It returns what happened to each schedule and the failures.
+// Inactive schedules are never considered, and nothing is created or
+// activated. A project whose schedules cannot be read (typically the
+// pipelines are disabled) has nothing to fix: it is only mentioned when
+// asked by name.
+func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabScheduleOwner, dryRun bool, byName bool) ([]scheduleReport, []error) {
+	reports := []scheduleReport{}
 	failures := []error{}
 
 	schedules, err := g.listSchedules(project.ID)
 	if err != nil && strings.Contains(err.Error(), "403") {
 		if byName {
-			lines = append(lines, fmt.Sprintf("%s: the schedules cannot be read (pipelines disabled?)", project.PathWithNamespace))
+			reports = append(reports, scheduleReport{label: project.PathWithNamespace, status: "the schedules cannot be read (pipelines disabled?)"})
 		}
-		return lines, failures
+		return reports, failures
 	}
 	if err != nil {
-		lines = append(lines, fmt.Sprintf("Error when reading the schedules of %s: %v", project.PathWithNamespace, err))
-		return lines, append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
+		reports = append(reports, scheduleReport{label: project.PathWithNamespace, status: fmt.Sprintf("error when reading the schedules: %v", err), kind: "failed"})
+		return reports, append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
 	}
 
 	for _, schedule := range schedules {
@@ -428,27 +463,29 @@ func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabSchedu
 			continue
 		}
 
-		line := scheduleLine(project.PathWithNamespace, schedule)
+		report := scheduleReport{label: scheduleLabel(project.PathWithNamespace, schedule), detail: describeSchedule(schedule)}
 
 		switch {
 		case schedule.Owner != nil && schedule.Owner.ID == me.ID:
-			lines = append(lines, line+": already yours")
+			report.status = "already yours"
 		case schedule.Owner != nil && schedule.Owner.State == "active":
-			lines = append(lines, line+": left alone")
+			report.status = "left alone"
 		case dryRun:
-			lines = append(lines, line+": would take ownership")
+			report.status, report.kind = "would take ownership", "pending"
 		default:
 			_, err := g.request("POST", fmt.Sprintf("/projects/%d/pipeline_schedules/%d/take_ownership", project.ID, schedule.ID), nil, nil)
 			if err != nil {
-				lines = append(lines, fmt.Sprintf("%s: error when taking ownership: %v", line, err))
+				report.status, report.kind = fmt.Sprintf("error when taking ownership: %v", err), "failed"
 				failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
-				continue
+			} else {
+				report.status, report.kind = "ownership taken", "done"
 			}
-			lines = append(lines, line+": ownership taken")
 		}
+
+		reports = append(reports, report)
 	}
 
-	return lines, failures
+	return reports, failures
 }
 
 // UpdateSchedule gives to the user of the token the ownership of the active
@@ -484,7 +521,7 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 		for _, id := range projects {
 			project, err := g.findProject(id)
 			if err != nil {
-				fmt.Printf("Error when reading project #%d: %v\n", id, err)
+				ui.Error("Error when reading project #%d: %v", id, err)
 				failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 				continue
 			}
@@ -492,7 +529,7 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 		}
 	}
 
-	results := make([][]string, len(targets))
+	results := make([][]scheduleReport, len(targets))
 	var (
 		mu   sync.Mutex
 		wg   sync.WaitGroup
@@ -507,30 +544,43 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 			defer wg.Done()
 			defer func() { <-slots }()
 
-			lines, errs := g.updateProjectSchedules(project, me, dryRun, len(projects) > 0)
+			reports, errs := g.updateProjectSchedules(project, me, dryRun, len(projects) > 0)
 
 			mu.Lock()
 			defer mu.Unlock()
-			results[i] = lines
+			results[i] = reports
 			failures = append(failures, errs...)
 			done++
-			progress("Checking schedules... %d/%d", done, len(targets))
+			ui.Progress("Checking schedules... %d/%d", done, len(targets))
 		}(i, project)
 	}
 
 	wg.Wait()
-	endProgress()
 
-	found := 0
-	for _, lines := range results {
-		found += len(lines)
-		for _, line := range lines {
-			fmt.Println(line)
+	rows := [][]string{}
+	pending, done, failed := 0, 0, 0
+	for _, reports := range results {
+		for _, report := range reports {
+			rows = append(rows, report.row())
+			switch report.kind {
+			case "pending":
+				pending++
+			case "done":
+				done++
+			case "failed":
+				failed++
+			}
 		}
 	}
 
-	if found == 0 {
-		fmt.Println("No active schedules found")
+	ui.Step("Checked %d projects: %d active schedules", len(targets), len(rows))
+
+	if len(rows) == 0 {
+		ui.Info("No active schedules found")
+	} else {
+		ui.Table(rows)
+		ui.Blank()
+		ui.Info("%d left alone or already yours, %d to fix, %d fixed, %d failed", len(rows)-pending-done-failed, pending, done, failed)
 	}
 
 	return errors.Join(failures...)

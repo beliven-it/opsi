@@ -3,6 +3,7 @@ package helpers
 import (
 	"bufio"
 	"fmt"
+	"opsi/helpers/ui"
 	"os"
 	"regexp"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 func Confirm() {
 	// Show the message
-	fmt.Println("Are you sure to proceed? (y/n)")
+	fmt.Fprint(os.Stderr, "Are you sure to proceed? [y/N] ")
 
 	// Start reader
 	reader := bufio.NewReader(os.Stdin)
@@ -28,7 +29,7 @@ func Confirm() {
 
 	// Confirm if value is positive
 	if value != "y" && value != "yes" {
-		fmt.Println("Ok, abort procedure")
+		ui.Info("Ok, abort procedure")
 		os.Exit(0)
 	}
 }

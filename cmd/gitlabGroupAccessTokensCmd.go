@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -28,8 +27,7 @@ var gitlabGroupAccessTokensCmd = &cobra.Command{
 
 		err := gitlab.ListGroupAccessTokens(expiring)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

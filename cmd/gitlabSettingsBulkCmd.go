@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -10,29 +9,29 @@ import (
 // projectCmd represents the project command
 var gitlabSettingsBulkCmd = &cobra.Command{
 	Use:   "bulk",
-	Short: "Update gitlab settings projects",
-	Long:  "Update gitlab settings projects",
+	Short: "Apply the default settings to all Gitlab projects",
+	Long:  "Apply the default settings to all Gitlab projects.",
 	Example: `
-  Update all projects
-  opsi gitlab settings bulk
-
-  Update all projects
+  Apply the default settings to all projects
   opsi gitlab settings bulk
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create the output channel for the messages
 		channel := make(chan string)
+		printed := make(chan struct{})
 		go func() {
+			defer close(printed)
 			for item := range channel {
-				fmt.Println(item)
+				ui.Print("%s", item)
 			}
 		}()
 
 		// Execute bulk
 		err := gitlab.BulkSettings(&channel)
+		close(channel)
+		<-printed
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }
