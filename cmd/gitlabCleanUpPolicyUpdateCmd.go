@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -27,8 +26,7 @@ var gitlabCleanUpPolicyUpdateCmd = &cobra.Command{
 		// Update cleanup policy
 		err := gitlab.UpdateCleanUpPolicy(projectID)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

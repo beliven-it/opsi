@@ -79,6 +79,12 @@ func Error(format string, args ...any) {
 	line(errOut, errTerminal, red, "✗", format, args...)
 }
 
+// Fatal reports a failure and ends the command with a non zero exit code
+func Fatal(failure error) {
+	Error("%s", failure.Error())
+	os.Exit(1)
+}
+
 // Section starts a group of lines, separated from the previous one
 func Section(format string, args ...any) {
 	EndProgress()

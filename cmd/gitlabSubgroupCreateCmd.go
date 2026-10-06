@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	slugify "github.com/mozillazg/go-slugify"
 	"github.com/spf13/cobra"
@@ -47,11 +46,10 @@ var gitlabSubgroupCreateCmd = &cobra.Command{
 		// Create subgroup
 		subgroupID, err := gitlab.CreateSubgroup(name, pathname, parentAsPointer)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
-		fmt.Println("Created new subgroup with ID", subgroupID)
+		ui.Success("Created new subgroup with ID %d", subgroupID)
 	},
 }
 

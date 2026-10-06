@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"embed"
-	"fmt"
 	"opsi/config"
 	"opsi/helpers"
+	"opsi/helpers/ui"
 	git "opsi/scopes/gitlab"
 	host "opsi/scopes/hosts"
 	op "opsi/scopes/onepassword"
@@ -50,9 +50,9 @@ func initConfig() {
 	// Checked here rather than in init so that importing the package, and every
 	// command that does not shell out to op, does not depend on it
 	if helpers.Which("op") == "" {
-		fmt.Println("Missing op executable")
-		fmt.Println("Please follow the instructions for install the binaries here:")
-		fmt.Print("\nhttps://developer.1password.com/docs/cli/get-started\n\n")
+		ui.Error("Missing op executable")
+		ui.Muted("Please follow the instructions for install the binaries here:")
+		ui.Muted("https://developer.1password.com/docs/cli/get-started")
 		os.Exit(1)
 	}
 
@@ -60,8 +60,7 @@ func initConfig() {
 	// Find home directory.
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		ui.Fatal(err)
 	}
 
 	var configFolder = "/.config/opsi/"
@@ -83,13 +82,12 @@ func initConfig() {
 	// Read config
 	err = viper.ReadInConfig()
 	if err != nil {
-		fmt.Println("Config file error", err.Error())
+		ui.Error("Config file error: %s", err.Error())
 		os.Exit(0)
 	}
 
 	if err := viper.Unmarshal(&mainConfig); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		ui.Fatal(err)
 	}
 
 	gitlab = git.NewGitlab(

@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -39,8 +38,7 @@ var gitlabEnvsCreateCmd = &cobra.Command{
 		// Create environments
 		err := gitlab.CreateEnvs(projectID, env, envFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

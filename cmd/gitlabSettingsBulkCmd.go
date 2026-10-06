@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -24,15 +23,14 @@ var gitlabSettingsBulkCmd = &cobra.Command{
 		channel := make(chan string)
 		go func() {
 			for item := range channel {
-				fmt.Println(item)
+				ui.Print("%s", item)
 			}
 		}()
 
 		// Execute bulk
 		err := gitlab.BulkSettings(&channel)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	// gl "opsi/scopes/gitlab"
 
@@ -20,11 +19,10 @@ var gitlabMirrorUpdateCmd = &cobra.Command{
 		// Update mirroring
 		err := gitlab.UpdateMirroring()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
-		fmt.Println("All GitLab repositories have been successfully updated")
+		ui.Success("All GitLab repositories have been successfully updated")
 	},
 }
 

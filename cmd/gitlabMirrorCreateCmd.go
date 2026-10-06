@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -27,13 +26,11 @@ Projects that already have a mirror are refused: use "mirror update" for those.`
 	Run: func(cmd *cobra.Command, args []string) {
 		ids, err := projectIDs(args)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
 		if err := gitlab.CreateMirror(ids); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"opsi/helpers"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -47,8 +46,7 @@ var gitlabEnvsDeleteCmd = &cobra.Command{
 		// Delete environment
 		err := gitlab.DeleteEnvs(projectID, env)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

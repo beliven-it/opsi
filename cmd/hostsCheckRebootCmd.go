@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -15,8 +14,7 @@ var hostsCheckRebootCmd = &cobra.Command{
 		// Check reboot
 		err := hosts.CheckReboot()
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

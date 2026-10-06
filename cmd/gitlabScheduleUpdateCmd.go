@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"opsi/helpers"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -38,8 +37,7 @@ Use --dry-run to only see the schedules, with their owner.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ids, err := projectIDs(args)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 
 		// Confirm the action (a dry run changes nothing)
@@ -50,8 +48,7 @@ Use --dry-run to only see the schedules, with their owner.`,
 		}
 
 		if err := gitlab.UpdateSchedule(ids, dryRun); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }

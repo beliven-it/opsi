@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"opsi/helpers"
-	"os"
+	"opsi/helpers/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -45,8 +44,7 @@ var onepasswordUserDeprovisioningCmd = &cobra.Command{
 		// Start the deprovisioning procedure
 		err := onepassword.Deprovisioning(email, dryRun)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			ui.Fatal(err)
 		}
 	},
 }
