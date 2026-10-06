@@ -128,16 +128,16 @@ func (g *gitlab) UpdateMirroring() error {
 	return errors.Join(failures...)
 }
 
-// CreateMirror sets up the mirroring for existing projects, given as numeric
-// ID or full path. Projects are processed independently: failures are
-// reported at the end instead of stopping the run.
-func (g *gitlab) CreateMirror(projects []string) error {
+// CreateMirror sets up the mirroring for existing projects, given by ID.
+// Projects are processed independently: failures are reported at the end
+// instead of stopping the run.
+func (g *gitlab) CreateMirror(projects []int) error {
 	var failures []error
-	for _, ref := range projects {
-		name, err := g.createMirrorForProject(ref)
+	for _, id := range projects {
+		name, err := g.createMirrorForProject(id)
 		if err != nil {
-			fmt.Printf("Error when creating mirroring for %s: %v\n", ref, err)
-			failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+			fmt.Printf("Error when creating mirroring for project #%d: %v\n", id, err)
+			failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 			continue
 		}
 		fmt.Println("Mirroring created for", name)
@@ -146,8 +146,10 @@ func (g *gitlab) CreateMirror(projects []string) error {
 	return errors.Join(failures...)
 }
 
-func (g *gitlab) createMirrorForProject(ref string) (string, error) {
-	response, err := g.request("GET", "/projects/"+url.PathEscape(ref), nil, nil)
+func (g *gitlab) createMirrorForProject(id int) (string, error) {
+	ref := strconv.Itoa(id)
+
+	response, err := g.request("GET", fmt.Sprintf("/projects/%d", id), nil, nil)
 	if err != nil {
 		return ref, err
 	}
