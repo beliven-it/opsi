@@ -370,3 +370,85 @@ func (g *gitlab) CreateSchedule(projects []string) error {
 
 	return errors.Join(failures...)
 }
+
+// describeSchedule is the one line description of a schedule, owner included.
+func describeSchedule(schedule gitlabPipelineSchedule) string {
+	state := "active"
+	if !schedule.Active {
+		state = "inactive"
+	}
+
+	owner := "none"
+	if schedule.Owner != nil {
+		owner = fmt.Sprintf("%s (%s)", schedule.Owner.Username, schedule.Owner.State)
+	}
+
+	description := fmt.Sprintf("%s on %s, %s, owner %s", schedule.Cron, strings.TrimPrefix(schedule.Ref, "refs/heads/"), state, owner)
+
+	// The list of the schedules does not always carry the last pipeline
+	if schedule.LastPipeline != nil {
+		description += ", last pipeline " + schedule.LastPipeline.Status
+	}
+
+	return description
+}
+
+// UpdateSchedule gives to the user of the token the ownership of the pipeline
+// schedules of the projects (numeric ID or full path), the ones whose owner is
+// someone else, is blocked, or does not exist anymore. A schedule runs as its
+// owner, so it stops when the owner goes away. The cron, the branch and the
+// description are not touched. With dryRun it only shows the schedules.
+func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
+	response, err := g.request("GET", "/user", nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var me gitlabScheduleOwner
+	if err := json.Unmarshal(response, &me); err != nil {
+		return err
+	}
+
+	var failures []error
+	for _, ref := range projects {
+		project, err := g.findProject(ref)
+		if err != nil {
+			fmt.Printf("Error when reading %s: %v\n", ref, err)
+			failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+			continue
+		}
+
+		schedules, err := g.listSchedules(project.ID)
+		if err != nil {
+			fmt.Printf("Error when reading the schedules of %s: %v\n", project.PathWithNamespace, err)
+			failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
+			continue
+		}
+
+		if len(schedules) == 0 {
+			fmt.Printf("%s: no schedules\n", project.PathWithNamespace)
+			continue
+		}
+
+		for _, schedule := range schedules {
+			line := fmt.Sprintf("%s: %s", project.PathWithNamespace, describeSchedule(schedule))
+
+			switch {
+			case schedule.Owner != nil && schedule.Owner.ID == me.ID:
+				fmt.Printf("%s: already yours\n", line)
+			case dryRun:
+				fmt.Printf("%s: would take ownership\n", line)
+			default:
+				_, err := g.request("POST", fmt.Sprintf("/projects/%d/pipeline_schedules/%d/take_ownership", project.ID, schedule.ID), nil, nil)
+				if err != nil {
+					fmt.Printf("%s: error when taking ownership: %v\n", line, err)
+					failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
+					continue
+				}
+				fmt.Printf("%s: ownership taken\n", line)
+			}
+		}
+	}
+
+	return errors.Join(failures...)
+}

@@ -201,3 +201,71 @@ func TestCreateSchedule(t *testing.T) {
 		t.Errorf("the two schedules got the same cron %v", byProject["/projects/1/pipeline_schedules"]["cron"])
 	}
 }
+
+func TestUpdateSchedule(t *testing.T) {
+	var mu sync.Mutex
+	taken := []string{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/user":
+			fmt.Fprint(w, `{"id":10,"username":"cicd","state":"active"}`)
+		case r.URL.EscapedPath() == "/projects/corporate%2Fapp":
+			fmt.Fprint(w, `{"id":1,"path_with_namespace":"corporate/app","default_branch":"main"}`)
+		case r.URL.EscapedPath() == "/projects/corporate%2Fempty":
+			fmt.Fprint(w, `{"id":2,"path_with_namespace":"corporate/empty","default_branch":"main"}`)
+		case r.URL.Path == "/projects/1/pipeline_schedules":
+			fmt.Fprint(w, `[
+			  {"id":1,"cron":"0 9 * * 1","ref":"refs/heads/main","active":true,"owner":{"id":10,"username":"cicd","state":"active"}},
+			  {"id":2,"cron":"0 10 * * 2","ref":"refs/heads/main","active":true,"owner":{"id":20,"username":"gone","state":"blocked"}},
+			  {"id":3,"cron":"0 11 * * 3","ref":"refs/heads/main","active":false,"owner":null},
+			  {"id":4,"cron":"0 12 * * 4","ref":"refs/heads/main","active":true,"owner":{"id":30,"username":"other","state":"active"}}]`)
+		case r.URL.Path == "/projects/2/pipeline_schedules":
+			fmt.Fprint(w, `[]`)
+		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/take_ownership"):
+			if r.URL.Path == "/projects/1/pipeline_schedules/4/take_ownership" {
+				w.WriteHeader(http.StatusForbidden)
+				fmt.Fprint(w, `{"message":"403 Forbidden"}`)
+				return
+			}
+			mu.Lock()
+			taken = append(taken, r.URL.Path)
+			mu.Unlock()
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.EscapedPath())
+		}
+	}))
+	defer server.Close()
+
+	g := &gitlab{apiURL: server.URL, token: "t"}
+
+	// A dry run must not change anything
+	if err := g.UpdateSchedule([]string{"corporate/app", "corporate/empty"}, true); err != nil {
+		t.Errorf("dry run failed: %v", err)
+	}
+	if len(taken) != 0 {
+		t.Errorf("dry run took ownership of %v", taken)
+	}
+
+	// Schedules already owned are left alone, the others are taken
+	// (including the one with no owner and the inactive one); a failure
+	// is reported without stopping the rest
+	err := g.UpdateSchedule([]string{"corporate/app", "corporate/empty"}, false)
+	if err == nil || !strings.Contains(err.Error(), "corporate/app") {
+		t.Errorf("expected the failure on schedule 4, got %v", err)
+	}
+
+	want := "/projects/1/pipeline_schedules/2/take_ownership,/projects/1/pipeline_schedules/3/take_ownership"
+	if got := strings.Join(taken, ","); got != want {
+		t.Errorf("took ownership of %q, want %q", got, want)
+	}
+}
+
+func TestDescribeSchedule(t *testing.T) {
+	got := describeSchedule(gitlabPipelineSchedule{Cron: "0 9 * * 1", Ref: "refs/heads/main", Active: true})
+	if got != "0 9 * * 1 on main, active, owner none" {
+		t.Errorf("got %q", got)
+	}
+}

@@ -30,6 +30,7 @@ type Gitlab interface {
 	ListGroupAccessTokens(int) error
 	CreateMirror([]string) error
 	CreateSchedule([]string) error
+	UpdateSchedule([]string, bool) error
 	UpdateCleanUpPolicy(string) error
 }
 
