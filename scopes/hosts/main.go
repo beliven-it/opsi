@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"opsi/helpers/ui"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -156,24 +157,24 @@ func (o *host) CheckReboot() error {
 		}
 	}
 
-	fmt.Println("REBOOTABLE")
+	ui.Section("Rebootable")
 	for _, host := range listRebootable {
-		fmt.Println("-", host)
+		ui.Item("%s", host)
 	}
 
-	fmt.Println("\nUN-REBOOTABLE")
+	ui.Section("Not rebootable")
 	for _, host := range listUnrebootable {
-		fmt.Println("-", host)
+		ui.Item("%s", host)
 	}
 
-	fmt.Println("\nSSH ERRORS")
+	ui.Section("SSH errors")
 	for _, host := range listErrors {
-		fmt.Println("-", host)
+		ui.Item("%s", host)
 	}
 
-	fmt.Println("\nIGNORED FOR OTHER ERRORS")
+	ui.Section("Ignored for other errors")
 	for _, host := range listIgnored {
-		fmt.Println("-", host)
+		ui.Item("%s", host)
 	}
 
 	return nil

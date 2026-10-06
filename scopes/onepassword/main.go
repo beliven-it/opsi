@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"opsi/helpers"
+	"opsi/helpers/ui"
 	"os"
 	"strconv"
 	"strings"
@@ -177,13 +178,13 @@ func (o *onePassword) Create(projectName string) error {
 	case 1:
 		o.account = listOfAccounts[0]
 	case 0:
-		fmt.Println("There's no account for this device, try to login and retry")
+		ui.Warn("There's no account for this device, try to login and retry")
 		return nil
 	default:
 		for {
-			fmt.Println("Choose one of this accounts from the list below:")
+			ui.Print("Choose one of this accounts from the list below:")
 			for index, account := range listOfAccounts {
-				fmt.Printf("[%d] - %s", index, account.Email)
+				ui.Item("[%d] %s", index, account.Email)
 			}
 
 			reader := bufio.NewReader(os.Stdin)
@@ -252,17 +253,17 @@ func (o *onePassword) Deprovisioning(userEmail string, dryRun bool) error {
 
 	if len(userToDelete) == 0 {
 		if userEmail != "" {
-			fmt.Printf("User %q is not suspended, nothing to delete\n", userEmail)
+			ui.Info("User %q is not suspended, nothing to delete", userEmail)
 		} else {
-			fmt.Println("There aren't any suspended users to delete")
+			ui.Info("There aren't any suspended users to delete")
 		}
 		return nil
 	}
 
 	if dryRun {
-		fmt.Println("Dry run, these users would be deleted:")
+		ui.Info("Dry run, these users would be deleted:")
 		for _, user := range userToDelete {
-			fmt.Printf("%s (%s)\n", user.Name, user.Email)
+			ui.Item("%s (%s)", user.Name, user.Email)
 		}
 		return nil
 	}
@@ -276,10 +277,10 @@ func (o *onePassword) Deprovisioning(userEmail string, dryRun bool) error {
 		}
 
 		deleted++
-		fmt.Printf("Deleted %s (%s)\n", user.Name, user.Email)
+		ui.Success("Deleted %s (%s)", user.Name, user.Email)
 	}
 
-	fmt.Printf("Deleted %d of %d users\n", deleted, len(userToDelete))
+	ui.Info("Deleted %d of %d users", deleted, len(userToDelete))
 
 	return errors.Join(failures...)
 }
