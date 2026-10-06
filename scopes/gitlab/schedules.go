@@ -393,6 +393,17 @@ func describeSchedule(schedule gitlabPipelineSchedule) string {
 	return description
 }
 
+// scheduleLine is the line shown for a schedule: a project can have more
+// schedules with the same cron, the description tells them apart.
+func scheduleLine(projectPath string, schedule gitlabPipelineSchedule) string {
+	label := projectPath
+	if schedule.Description != "" {
+		label = fmt.Sprintf("%s [%s]", projectPath, schedule.Description)
+	}
+
+	return fmt.Sprintf("%s: %s", label, describeSchedule(schedule))
+}
+
 // updateProjectSchedules fixes the active schedules of a project that lost
 // their owner. It returns the lines to print and the failures. Inactive
 // schedules are never considered, and nothing is created or activated.
@@ -419,7 +430,7 @@ func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabSchedu
 			continue
 		}
 
-		line := fmt.Sprintf("%s: %s", project.PathWithNamespace, describeSchedule(schedule))
+		line := scheduleLine(project.PathWithNamespace, schedule)
 
 		switch {
 		case schedule.Owner != nil && schedule.Owner.ID == me.ID:

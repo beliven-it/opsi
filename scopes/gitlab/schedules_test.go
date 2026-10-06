@@ -266,6 +266,19 @@ func TestUpdateSchedule(t *testing.T) {
 	}
 }
 
+func TestScheduleLine(t *testing.T) {
+	schedule := gitlabPipelineSchedule{Description: "nightly build", Cron: "0 9 * * 1", Ref: "refs/heads/main", Active: true}
+
+	if got := scheduleLine("group/app", schedule); got != "group/app [nightly build]: 0 9 * * 1 on main, active, owner none" {
+		t.Errorf("got %q", got)
+	}
+
+	schedule.Description = ""
+	if got := scheduleLine("group/app", schedule); got != "group/app: 0 9 * * 1 on main, active, owner none" {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestDescribeSchedule(t *testing.T) {
 	got := describeSchedule(gitlabPipelineSchedule{Cron: "0 9 * * 1", Ref: "refs/heads/main", Active: true})
 	if got != "0 9 * * 1 on main, active, owner none" {
