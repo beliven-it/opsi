@@ -169,7 +169,7 @@ func (g *gitlab) createMirrorForProject(ref string) (string, error) {
 		return project.PathWithNamespace, err
 	}
 	if hasMirror {
-		return project.PathWithNamespace, errors.New("the project already has a mirror, use `opsi gitlab update mirroring`")
+		return project.PathWithNamespace, errors.New("the project already has a mirror, use `opsi gitlab mirror update`")
 	}
 
 	// Create the destination project only when it is not there yet.
