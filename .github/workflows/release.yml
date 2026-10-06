@@ -23,3 +23,9 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      # GoReleaser drops `brews` in v3: generate the formulas ourselves and
+      # check they match. Once they always do, `brews` can be replaced by a push.
+      - name: Check generated Homebrew formulas
+        run: |
+          scripts/homebrew-formula.sh dist "$RUNNER_TEMP/formulas"
+          diff -ru dist/homebrew/Formula "$RUNNER_TEMP/formulas"
