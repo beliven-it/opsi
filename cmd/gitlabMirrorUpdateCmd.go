@@ -11,8 +11,8 @@ import (
 )
 
 // updateMirroring represents the update mirroring command
-var gitlabUpdateMirroringCmd = &cobra.Command{
-	Use:   "mirroring",
+var gitlabMirrorUpdateCmd = &cobra.Command{
+	Use:   "update",
 	Short: "Update Gitlab Mirroring",
 	Long:  "This command updates mirroring for all GitLab repositories",
 
@@ -29,5 +29,5 @@ var gitlabUpdateMirroringCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabUpdateCmd.AddCommand(gitlabUpdateMirroringCmd)
+	gitlabMirrorCmd.AddCommand(gitlabMirrorUpdateCmd)
 }

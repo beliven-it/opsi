@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabDeleteEnvsCmd = &cobra.Command{
-	Use:   "envs {project_id}",
+var gitlabEnvsDeleteCmd = &cobra.Command{
+	Use:   "delete {project_id}",
 	Args:  cobra.ExactArgs(1),
 	Short: "Delete ENVs for Gitlab project",
 	Long: `
@@ -19,17 +19,17 @@ var gitlabDeleteEnvsCmd = &cobra.Command{
 	`,
 	Example: `	
   Delete ENVs for the project 1234.
-  opsi gitlab delete envs 1234
+  opsi gitlab envs delete 1234
 	
   ---
 	
   Delete ENVS for the project 1234 but only for staging environment
-  opsi gitlab delete envs 1234 -e staging
+  opsi gitlab envs delete 1234 -e staging
  
   ---
 
   Delete ENVS for the project 1234 without ask for confirmation.
-  opsi gitlab delete envs 1234 -f
+  opsi gitlab envs delete 1234 -f
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take project ID
@@ -54,7 +54,7 @@ var gitlabDeleteEnvsCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabDeleteCmd.AddCommand(gitlabDeleteEnvsCmd)
-	gitlabDeleteEnvsCmd.Flags().StringP("env", "e", "*", "The environment scope")
-	gitlabDeleteEnvsCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
+	gitlabEnvsCmd.AddCommand(gitlabEnvsDeleteCmd)
+	gitlabEnvsDeleteCmd.Flags().StringP("env", "e", "*", "The environment scope")
+	gitlabEnvsDeleteCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
 }

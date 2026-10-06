@@ -8,8 +8,8 @@ import (
 )
 
 // subgroupCmd represents the subgroup command
-var gitlabCreateEnvsCmd = &cobra.Command{
-	Use:   "envs {project_id} {env_file_path}",
+var gitlabEnvsCreateCmd = &cobra.Command{
+	Use:   "create {project_id} {env_file_path}",
 	Args:  cobra.ExactArgs(2),
 	Short: "Create ENVs for Gitlab project",
 	Long: `
@@ -19,12 +19,12 @@ var gitlabCreateEnvsCmd = &cobra.Command{
 	`,
 	Example: `	
   Create ENVs for the project 1234.
-  opsi gitlab create envs 1234 /file/to/env.yml
+  opsi gitlab envs create 1234 /file/to/env.yml
 
   ---
 
   Create ENVS for the project 1234 but only for staging environment
-  opsi gitlab create envs 1234 /file/to/env.yml -e staging
+  opsi gitlab envs create 1234 /file/to/env.yml -e staging
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take project ID
@@ -46,6 +46,6 @@ var gitlabCreateEnvsCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabCreateCmd.AddCommand(gitlabCreateEnvsCmd)
-	gitlabCreateEnvsCmd.Flags().StringP("env", "e", "*", "The environment scope")
+	gitlabEnvsCmd.AddCommand(gitlabEnvsCreateCmd)
+	gitlabEnvsCreateCmd.Flags().StringP("env", "e", "*", "The environment scope")
 }

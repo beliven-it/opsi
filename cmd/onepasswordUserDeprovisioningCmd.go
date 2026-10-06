@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var onepasswordDeprovisioningCmd = &cobra.Command{
+var onepasswordUserDeprovisioningCmd = &cobra.Command{
 	Use:   "deprovisioning",
 	Short: "Deprovision 1password inactive users",
 	Long: `Deprovision 1password inactive users. 
@@ -19,12 +19,12 @@ var onepasswordDeprovisioningCmd = &cobra.Command{
 	`,
 	Example: `
   Deprovisioning all inactive users from 1password workspace
-  opsi 1password deprovisioning	
+  opsi 1password user deprovisioning	
 
   ---
 
   Deprovisioning the user with email john.doe@example.com from 1password workspace
-  opsi 1password deprovisioning -e john.doe@example.com
+  opsi 1password user deprovisioning -e john.doe@example.com
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Take email from flag
@@ -46,7 +46,7 @@ var onepasswordDeprovisioningCmd = &cobra.Command{
 }
 
 func init() {
-	onepasswordCmd.AddCommand(onepasswordDeprovisioningCmd)
-	onepasswordDeprovisioningCmd.Flags().StringP("email", "e", "", "The email of the user to deprovisioning")
-	onepasswordDeprovisioningCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
+	onepasswordUserCmd.AddCommand(onepasswordUserDeprovisioningCmd)
+	onepasswordUserDeprovisioningCmd.Flags().StringP("email", "e", "", "The email of the user to deprovisioning")
+	onepasswordUserDeprovisioningCmd.Flags().BoolP("force", "f", false, "Not ask confirmation to delete")
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gitlabCreateMirrorCmd = &cobra.Command{
-	Use:   "mirror {project}...",
+var gitlabMirrorCreateCmd = &cobra.Command{
+	Use:   "create {project}...",
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Enable the mirroring for existing Gitlab projects",
 	Long: `Enable the mirroring for one or more existing Gitlab projects.
@@ -17,12 +17,12 @@ The destination project is created on the mirror instance when missing.
 Projects that already have a mirror are refused: use "update mirroring" for those.`,
 	Example: `
   Enable the mirroring for a project
-  opsi gitlab create mirror corporate/wiki/beliven-wiki
+  opsi gitlab mirror create corporate/wiki/beliven-wiki
 
   ---
 
   Enable the mirroring for more projects, by path or ID
-  opsi gitlab create mirror corporate/wiki/beliven-wiki 1234
+  opsi gitlab mirror create corporate/wiki/beliven-wiki 1234
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := gitlab.CreateMirror(args); err != nil {
@@ -33,5 +33,5 @@ Projects that already have a mirror are refused: use "update mirroring" for thos
 }
 
 func init() {
-	gitlabCreateCmd.AddCommand(gitlabCreateMirrorCmd)
+	gitlabMirrorCmd.AddCommand(gitlabMirrorCreateCmd)
 }

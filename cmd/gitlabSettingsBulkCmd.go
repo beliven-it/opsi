@@ -8,16 +8,16 @@ import (
 )
 
 // projectCmd represents the project command
-var gitlabBulkSettingsCmd = &cobra.Command{
-	Use:   "settings",
+var gitlabSettingsBulkCmd = &cobra.Command{
+	Use:   "bulk",
 	Short: "Update gitlab settings projects",
 	Long:  "Update gitlab settings projects",
 	Example: `
   Update all projects
-  opsi gitlab bulk settings
+  opsi gitlab settings bulk
 
   Update all projects
-  opsi gitlab bulk settings
+  opsi gitlab settings bulk
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create the output channel for the messages
@@ -38,5 +38,5 @@ var gitlabBulkSettingsCmd = &cobra.Command{
 }
 
 func init() {
-	gitlabBulkCmd.AddCommand(gitlabBulkSettingsCmd)
+	gitlabSettingsCmd.AddCommand(gitlabSettingsBulkCmd)
 }
