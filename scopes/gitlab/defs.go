@@ -25,7 +25,7 @@ type Gitlab interface {
 	GroupSettingsDrift(int) ([]GroupDrift, error)
 	ApplyGroupSettings([]GroupDrift, *chan string) error
 	BulkSettings(*chan string) error
-	Deprovionioning(string) error
+	Deprovisioning(string, bool) error
 	UpdateMirroring() error
 	CreateMirror([]string) error
 	UpdateCleanUpPolicy(string) error
@@ -180,8 +180,16 @@ type gitlabSetupBranchRequest struct {
 }
 
 type gitlabUser struct {
-	ID   int    `json:"id"`
-	Note string `json:"note"`
+	ID       int    `json:"id"`
+	Note     string `json:"note"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+type gitlabMembership struct {
+	SourceID   int    `json:"source_id"`
+	SourceName string `json:"source_name"`
+	SourceType string `json:"source_type"`
 }
 
 type gitlabCreateEnvRequest struct {

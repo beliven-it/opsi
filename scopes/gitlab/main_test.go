@@ -1,6 +1,12 @@
 package gitlab
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sort"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -151,5 +157,84 @@ func TestGroupIdentity(t *testing.T) {
 	// A malformed answer must not panic
 	if id, fullPath := groupIdentity(map[string]any{}); id != 0 || fullPath != "" {
 		t.Errorf("got (%d, %q)", id, fullPath)
+	}
+}
+
+func TestDeprovisioning(t *testing.T) {
+	var mu sync.Mutex
+	deleted := []string{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/users":
+			q := r.URL.Query()
+			if q.Get("username") == "ghost" || q.Get("search") == "ghost@example.com" {
+				fmt.Fprint(w, `[]`)
+				return
+			}
+			if q.Get("search") == "john@example.com" {
+				fmt.Fprint(w, `[{"id":99,"email":"other.john@example.com"},{"id":7,"email":"John@Example.com"}]`)
+				return
+			}
+			fmt.Fprint(w, `[{"id":7}]`)
+		case r.URL.Path == "/users/7/memberships":
+			if r.URL.Query().Get("page") != "1" {
+				fmt.Fprint(w, `[]`)
+				return
+			}
+			fmt.Fprint(w, `[
+			  {"source_id":1,"source_name":"g1","source_type":"Namespace"},
+			  {"source_id":2,"source_name":"g2","source_type":"Namespace"},
+			  {"source_id":3,"source_name":"p3","source_type":"Project"},
+			  {"source_id":4,"source_name":"p4","source_type":"Project"}]`)
+		case r.Method == "DELETE":
+			if r.URL.Path == "/groups/2/members/7" {
+				w.WriteHeader(http.StatusNotFound) // inherited access
+				fmt.Fprint(w, `{"message":"404 Not found"}`)
+				return
+			}
+			if r.URL.Path == "/projects/4/members/7" {
+				w.WriteHeader(http.StatusForbidden)
+				fmt.Fprint(w, `{"message":"403 Forbidden"}`)
+				return
+			}
+			mu.Lock()
+			deleted = append(deleted, r.URL.Path)
+			mu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	g := &gitlab{apiURL: server.URL, token: "t"}
+
+	err := g.Deprovisioning("john", false)
+	if err == nil || !strings.Contains(err.Error(), "p4") {
+		t.Errorf("expected only the p4 failure, got %v", err)
+	}
+
+	sort.Strings(deleted)
+	want := "/groups/1/members/7,/projects/3/members/7"
+	if got := strings.Join(deleted, ","); got != want {
+		t.Errorf("deleted %q, want %q", got, want)
+	}
+
+	deletedBefore := len(deleted)
+	if err := g.Deprovisioning("john", true); err != nil || len(deleted) != deletedBefore {
+		t.Errorf("dry run must not delete anything, err = %v", err)
+	}
+
+	// Lookup by email must pick the exact match, not just the first result
+	if err := g.Deprovisioning("john@example.com", true); err != nil {
+		t.Errorf("lookup by email failed: %v", err)
+	}
+	if err := g.Deprovisioning("ghost@example.com", true); err == nil {
+		t.Error("expected an error for an unknown email")
+	}
+
+	if err := g.Deprovisioning("ghost", false); err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("expected a does-not-exist error, got %v", err)
 	}
 }

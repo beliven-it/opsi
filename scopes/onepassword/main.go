@@ -13,6 +13,11 @@ import (
 
 // Execute any OP command.
 func (o *onePassword) executeCommand(args ...string) ([]byte, error) {
+	return execOp(args...)
+}
+
+// execOp runs the op binary. It is a variable so tests can replace it.
+var execOp = func(args ...string) ([]byte, error) {
 	return helpers.Exec("op", args...)
 }
 
@@ -212,7 +217,11 @@ func (o *onePassword) Create(projectName string) error {
 	return o.grantPermissions(pubName, priName, unprivilegedPriPermissions)
 }
 
-func (o *onePassword) Deprovisioning(userEmail string) error {
+// Deprovisioning deletes the suspended users from the workspace: all of them,
+// or only the one matching userEmail when it is provided.
+// With dryRun it only lists the users that would be deleted.
+// The confirmation is up to the caller.
+func (o *onePassword) Deprovisioning(userEmail string, dryRun bool) error {
 	output, err := o.executeCommand("user", "list", "--format", "json")
 	if err != nil {
 		return err
@@ -224,41 +233,55 @@ func (o *onePassword) Deprovisioning(userEmail string) error {
 		return err
 	}
 
-	userToSuspend := []OnePasswordUser{}
+	userToDelete := []OnePasswordUser{}
+	found := false
 	for _, user := range listOfUsers {
-		if userEmail != "" {
-			if userEmail != user.Email {
-				continue
-			}
+		if userEmail != "" && !strings.EqualFold(userEmail, user.Email) {
+			continue
 		}
+		found = true
 
 		if user.State == "SUSPENDED" {
-			userToSuspend = append(userToSuspend, user)
+			userToDelete = append(userToDelete, user)
 		}
 	}
 
-	if len(userToSuspend) == 0 {
-		fmt.Println("There aren't any user to delete")
+	if userEmail != "" && !found {
+		return fmt.Errorf("user %q does not exist on 1password", userEmail)
+	}
+
+	if len(userToDelete) == 0 {
+		if userEmail != "" {
+			fmt.Printf("User %q is not suspended, nothing to delete\n", userEmail)
+		} else {
+			fmt.Println("There aren't any suspended users to delete")
+		}
 		return nil
 	}
 
-	fmt.Println("Are you sure to remove these users? (y/n)")
-	for _, user := range userToSuspend {
-		fmt.Printf("%s\n", user.Name)
-	}
-
-	var reader = bufio.NewReader(os.Stdin)
-	confirmation, _ := reader.ReadString('\n')
-	if confirmation != "y" {
+	if dryRun {
+		fmt.Println("Dry run, these users would be deleted:")
+		for _, user := range userToDelete {
+			fmt.Printf("%s (%s)\n", user.Name, user.Email)
+		}
 		return nil
 	}
 
-	for _, user := range userToSuspend {
-		fmt.Printf("%s\n", user.Name)
-		// exec.Command("op", "user", "delete", user.ID)
+	var failures []error
+	deleted := 0
+	for _, user := range userToDelete {
+		if _, err := o.executeCommand("user", "delete", user.ID); err != nil {
+			failures = append(failures, fmt.Errorf("%s (%s): %w", user.Name, user.Email, err))
+			continue
+		}
+
+		deleted++
+		fmt.Printf("Deleted %s (%s)\n", user.Name, user.Email)
 	}
 
-	return nil
+	fmt.Printf("Deleted %d of %d users\n", deleted, len(userToDelete))
+
+	return errors.Join(failures...)
 }
 
 func NewOnePassword(address string) OnePassword {
