@@ -27,6 +27,7 @@ type Gitlab interface {
 	BulkSettings(*chan string) error
 	Deprovisioning(string, bool) error
 	UpdateMirroring() error
+	ListGroupAccessTokens(int) error
 	CreateMirror([]string) error
 	UpdateCleanUpPolicy(string) error
 }
@@ -184,6 +185,13 @@ type gitlabUser struct {
 	Note     string `json:"note"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
+}
+
+type gitlabAccessToken struct {
+	Name      string   `json:"name"`
+	Scopes    []string `json:"scopes"`
+	ExpiresAt string   `json:"expires_at"`
+	Revoked   bool     `json:"revoked"`
 }
 
 type gitlabMembership struct {
