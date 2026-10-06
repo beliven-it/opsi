@@ -1235,59 +1235,145 @@ func (g *gitlab) BulkSettings(channel *chan string) error {
 	return nil
 }
 
-// Handle deprovisioninig of a user
-func (g *gitlab) Deprovionioning(username string) error {
-	// Retrieve user ID by the username provided.
-	users, err := g.listUsers(map[string]string{
-		"username": username,
-	})
+// findUser looks for a user by username or, when the value contains an @,
+// by email. It fails if no user matches exactly.
+func (g *gitlab) findUser(usernameOrEmail string) (gitlabUser, error) {
+	filters := map[string]string{"username": usernameOrEmail}
+	byEmail := strings.Contains(usernameOrEmail, "@")
+	if byEmail {
+		filters = map[string]string{"search": usernameOrEmail}
+	}
+
+	users, err := g.listUsers(filters)
+	if err != nil {
+		return gitlabUser{}, err
+	}
+
+	for _, user := range users {
+		if !byEmail || strings.EqualFold(user.Email, usernameOrEmail) {
+			return user, nil
+		}
+	}
+
+	return gitlabUser{}, fmt.Errorf("user %q does not exist on gitlab (searched by %s)", usernameOrEmail, map[bool]string{true: "email", false: "username"}[byEmail])
+}
+
+// deprovisioningConcurrency caps the parallel DELETE requests, to stay
+// well below the GitLab rate limit.
+const deprovisioningConcurrency = 5
+
+// listUserMemberships returns every group and project the user is member of.
+func (g *gitlab) listUserMemberships(userID int) ([]gitlabMembership, error) {
+	memberships := []gitlabMembership{}
+
+	for page := 1; ; page++ {
+		response, err := g.request("GET", fmt.Sprintf("/users/%d/memberships", userID), nil, map[string]string{
+			"page":     strconv.Itoa(page),
+			"per_page": "100",
+		})
+		if err != nil {
+			endProgress()
+			return nil, err
+		}
+
+		var list []gitlabMembership
+		if err := json.Unmarshal(response, &list); err != nil {
+			endProgress()
+			return nil, err
+		}
+
+		if len(list) == 0 {
+			endProgress()
+			return memberships, nil
+		}
+
+		memberships = append(memberships, list...)
+		progress("Retrieving memberships... %d", len(memberships))
+	}
+}
+
+// isNotFound tells if a request failed because the entity does not exist
+// (helpers.Request returns the body of the response as error).
+func isNotFound(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "404")
+}
+
+// Handle deprovisioninig of a user: remove it from every group and project.
+// With dryRun it only lists the memberships that would be removed.
+func (g *gitlab) Deprovisioning(username string, dryRun bool) error {
+	// Retrieve the user by the username (or the email) provided.
+	user, err := g.findUser(username)
+	if err != nil {
+		return err
+	}
+	userID := user.ID
+
+	memberships, err := g.listUserMemberships(userID)
 	if err != nil {
 		return err
 	}
 
-	// If the list is empty the script cannot continue.
-	if len(users) == 0 {
-		return errors.New("user not found")
+	if len(memberships) == 0 {
+		fmt.Printf("User %q is not member of any group or project\n", username)
+		return nil
 	}
 
-	// Take the ID of the first user found.
-	// Tipically the result of the list must be one.
-	userID := users[0].ID
-
-	// List all projects
-	groups, err := g.walkThroughRequest("/groups", []gitlabEntityWithID{}, 1)
-	if err != nil {
-		return err
+	if dryRun {
+		fmt.Printf("Dry run, %q would be removed from:\n", username)
+		for _, m := range memberships {
+			fmt.Printf("%s: %s\n", strings.ToLower(m.SourceType), m.SourceName)
+		}
+		return nil
 	}
-	// projects := g.walkThroughProjects([]gitlabEntityWithID{}, 0)
 
-	wg := sync.WaitGroup{}
+	var (
+		mu       sync.Mutex
+		wg       sync.WaitGroup
+		failures []error
+		groups   int
+		projects int
+		done     int
+	)
+	slots := make(chan struct{}, deprovisioningConcurrency)
 
-	// Remove from groups and subgroups
-	for _, group := range groups {
+	for _, membership := range memberships {
 		wg.Add(1)
-		go func(groupID int) {
+		slots <- struct{}{}
+		go func(m gitlabMembership) {
 			defer wg.Done()
+			defer func() { <-slots }()
 
-			g.request("DELETE", fmt.Sprintf("/groups/%d/members/%d", groupID, userID), nil, nil)
+			kind := "groups"
+			if m.SourceType == "Project" {
+				kind = "projects"
+			}
 
-		}(group.ID)
+			_, err := g.request("DELETE", fmt.Sprintf("/%s/%d/members/%d", kind, m.SourceID, userID), nil, nil)
+
+			mu.Lock()
+			defer mu.Unlock()
+			done++
+			progress("Removing memberships... %d/%d", done, len(memberships))
+
+			switch {
+			// Access inherited from a parent group: nothing to remove here.
+			case isNotFound(err):
+			case err != nil:
+				failures = append(failures, fmt.Errorf("%s %s: %w", strings.TrimSuffix(kind, "s"), m.SourceName, err))
+			case kind == "groups":
+				groups++
+			default:
+				projects++
+			}
+		}(membership)
 	}
-
-	// Remove from projects
-	// for _, project := range projects {
-	// 	wg.Add(1)
-	// 	go func(projectID int) {
-	// 		defer wg.Done()
-
-	// 		g.request("DELETE", fmt.Sprintf("/projects/%d/members/%d", projectID, userID), nil, nil)
-
-	// 	}(project.ID)
-	// }
 
 	wg.Wait()
+	endProgress()
 
-	return nil
+	fmt.Printf("Removed %q from %d groups and %d projects\n", username, groups, projects)
+
+	return errors.Join(failures...)
 }
 
 func NewGitlab(apiURL string, token string, mirror GitlabMirrorOptions, exclusions GitlabExclusionsConfig) Gitlab {
