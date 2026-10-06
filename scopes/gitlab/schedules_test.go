@@ -251,15 +251,16 @@ func TestUpdateSchedule(t *testing.T) {
 		t.Errorf("dry run took ownership of %v", taken)
 	}
 
-	// Only the schedules that lost their owner are taken (blocked or missing
-	// owner); the ones of an active user, mine included, are left alone.
+	// Only the active schedules that lost their owner are taken (blocked or
+	// deactivated owner); the ones of an active user, mine included, are left alone.
 	// A failure is reported without stopping the rest
 	err := g.UpdateSchedule([]string{"corporate/app", "corporate/empty"}, false)
 	if err == nil || !strings.Contains(err.Error(), "corporate/app") {
 		t.Errorf("expected the failure on schedule 6, got %v", err)
 	}
 
-	want := "/projects/1/pipeline_schedules/2/take_ownership,/projects/1/pipeline_schedules/3/take_ownership,/projects/1/pipeline_schedules/5/take_ownership"
+	// The inactive schedule 3 is not touched, even if it has no owner
+	want := "/projects/1/pipeline_schedules/2/take_ownership,/projects/1/pipeline_schedules/5/take_ownership"
 	if got := strings.Join(taken, ","); got != want {
 		t.Errorf("took ownership of %q, want %q", got, want)
 	}
@@ -269,5 +270,50 @@ func TestDescribeSchedule(t *testing.T) {
 	got := describeSchedule(gitlabPipelineSchedule{Cron: "0 9 * * 1", Ref: "refs/heads/main", Active: true})
 	if got != "0 9 * * 1 on main, active, owner none" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestUpdateScheduleAllProjects(t *testing.T) {
+	var mu sync.Mutex
+	taken := []string{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/user":
+			fmt.Fprint(w, `{"id":10,"username":"cicd","state":"active"}`)
+		case r.URL.Path == "/projects":
+			fmt.Fprint(w, `[{"id":1,"path_with_namespace":"a/orphan"},{"id":2,"path_with_namespace":"a/inactive-only"},{"id":3,"path_with_namespace":"a/none"},{"id":4,"path_with_namespace":"a/no-pipelines"}]`)
+		case r.URL.Path == "/projects/4/pipeline_schedules":
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprint(w, `{"message":"403 Forbidden"}`)
+		case r.URL.Path == "/projects/1/pipeline_schedules":
+			fmt.Fprint(w, `[{"id":1,"cron":"0 9 * * 1","ref":"refs/heads/main","active":true,"owner":{"id":20,"username":"gone","state":"blocked"}}]`)
+		case r.URL.Path == "/projects/2/pipeline_schedules":
+			fmt.Fprint(w, `[{"id":2,"cron":"0 9 * * 1","ref":"refs/heads/main","active":false,"owner":null}]`)
+		case r.URL.Path == "/projects/3/pipeline_schedules":
+			fmt.Fprint(w, `[]`)
+		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/take_ownership"):
+			mu.Lock()
+			taken = append(taken, r.URL.Path)
+			mu.Unlock()
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.EscapedPath())
+		}
+	}))
+	defer server.Close()
+
+	g := &gitlab{apiURL: server.URL, token: "t"}
+
+	// With no projects all of them are checked, but a project is touched only
+	// when it has an active schedule, and nothing is ever created
+	// (a project that cannot be read, like the one without pipelines, is no failure)
+	if err := g.UpdateSchedule(nil, false); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := strings.Join(taken, ","); got != "/projects/1/pipeline_schedules/1/take_ownership" {
+		t.Errorf("took ownership of %q", got)
 	}
 }

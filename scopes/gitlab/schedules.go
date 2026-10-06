@@ -393,12 +393,62 @@ func describeSchedule(schedule gitlabPipelineSchedule) string {
 	return description
 }
 
-// UpdateSchedule gives to the user of the token the ownership of the pipeline
-// schedules of the projects (numeric ID or full path) that have lost their
-// owner: the owner does not exist anymore, is blocked or is deactivated. A
-// schedule runs as its owner, so it would not run anymore. The schedules of an
-// active user are left alone, as the cron, the branch and the description.
-// With dryRun it only shows the schedules.
+// updateProjectSchedules fixes the active schedules of a project that lost
+// their owner. It returns the lines to print and the failures. Inactive
+// schedules are never considered, and nothing is created or activated.
+// A project whose schedules cannot be read (typically the pipelines are
+// disabled) has nothing to fix: it is only mentioned when asked by name.
+func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabScheduleOwner, dryRun bool, byName bool) ([]string, []error) {
+	lines := []string{}
+	failures := []error{}
+
+	schedules, err := g.listSchedules(project.ID)
+	if err != nil && strings.Contains(err.Error(), "403") {
+		if byName {
+			lines = append(lines, fmt.Sprintf("%s: the schedules cannot be read (pipelines disabled?)", project.PathWithNamespace))
+		}
+		return lines, failures
+	}
+	if err != nil {
+		lines = append(lines, fmt.Sprintf("Error when reading the schedules of %s: %v", project.PathWithNamespace, err))
+		return lines, append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
+	}
+
+	for _, schedule := range schedules {
+		if !schedule.Active {
+			continue
+		}
+
+		line := fmt.Sprintf("%s: %s", project.PathWithNamespace, describeSchedule(schedule))
+
+		switch {
+		case schedule.Owner != nil && schedule.Owner.ID == me.ID:
+			lines = append(lines, line+": already yours")
+		case schedule.Owner != nil && schedule.Owner.State == "active":
+			lines = append(lines, line+": left alone")
+		case dryRun:
+			lines = append(lines, line+": would take ownership")
+		default:
+			_, err := g.request("POST", fmt.Sprintf("/projects/%d/pipeline_schedules/%d/take_ownership", project.ID, schedule.ID), nil, nil)
+			if err != nil {
+				lines = append(lines, fmt.Sprintf("%s: error when taking ownership: %v", line, err))
+				failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
+				continue
+			}
+			lines = append(lines, line+": ownership taken")
+		}
+	}
+
+	return lines, failures
+}
+
+// UpdateSchedule gives to the user of the token the ownership of the active
+// pipeline schedules that have lost their owner: the owner does not exist
+// anymore, is blocked or is deactivated. A schedule runs as its owner, so it
+// would not run anymore. The schedules of an active user are left alone, as
+// the cron, the branch and the description. It never creates or activates a
+// schedule. The projects are given by numeric ID or full path; with none, all
+// the projects are checked. With dryRun it only shows the schedules.
 func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
 	response, err := g.request("GET", "/user", nil, nil)
 	if err != nil {
@@ -411,46 +461,67 @@ func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
 	}
 
 	var failures []error
-	for _, ref := range projects {
-		project, err := g.findProject(ref)
+	targets := []scheduleProject{}
+
+	if len(projects) == 0 {
+		all, err := g.listProjects()
 		if err != nil {
-			fmt.Printf("Error when reading %s: %v\n", ref, err)
-			failures = append(failures, fmt.Errorf("%s: %w", ref, err))
-			continue
+			return err
 		}
-
-		schedules, err := g.listSchedules(project.ID)
-		if err != nil {
-			fmt.Printf("Error when reading the schedules of %s: %v\n", project.PathWithNamespace, err)
-			failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
-			continue
+		for _, project := range all {
+			targets = append(targets, scheduleProject{ID: project.ID, PathWithNamespace: project.PathWithNamespace})
 		}
-
-		if len(schedules) == 0 {
-			fmt.Printf("%s: no schedules\n", project.PathWithNamespace)
-			continue
-		}
-
-		for _, schedule := range schedules {
-			line := fmt.Sprintf("%s: %s", project.PathWithNamespace, describeSchedule(schedule))
-
-			switch {
-			case schedule.Owner != nil && schedule.Owner.ID == me.ID:
-				fmt.Printf("%s: already yours\n", line)
-			case schedule.Owner != nil && schedule.Owner.State == "active":
-				fmt.Printf("%s: left alone\n", line)
-			case dryRun:
-				fmt.Printf("%s: would take ownership\n", line)
-			default:
-				_, err := g.request("POST", fmt.Sprintf("/projects/%d/pipeline_schedules/%d/take_ownership", project.ID, schedule.ID), nil, nil)
-				if err != nil {
-					fmt.Printf("%s: error when taking ownership: %v\n", line, err)
-					failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
-					continue
-				}
-				fmt.Printf("%s: ownership taken\n", line)
+	} else {
+		for _, ref := range projects {
+			project, err := g.findProject(ref)
+			if err != nil {
+				fmt.Printf("Error when reading %s: %v\n", ref, err)
+				failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+				continue
 			}
+			targets = append(targets, project)
 		}
+	}
+
+	results := make([][]string, len(targets))
+	var (
+		mu   sync.Mutex
+		wg   sync.WaitGroup
+		done int
+	)
+	slots := make(chan struct{}, deprovisioningConcurrency)
+
+	for i, project := range targets {
+		wg.Add(1)
+		slots <- struct{}{}
+		go func(i int, project scheduleProject) {
+			defer wg.Done()
+			defer func() { <-slots }()
+
+			lines, errs := g.updateProjectSchedules(project, me, dryRun, len(projects) > 0)
+
+			mu.Lock()
+			defer mu.Unlock()
+			results[i] = lines
+			failures = append(failures, errs...)
+			done++
+			progress("Checking schedules... %d/%d", done, len(targets))
+		}(i, project)
+	}
+
+	wg.Wait()
+	endProgress()
+
+	found := 0
+	for _, lines := range results {
+		found += len(lines)
+		for _, line := range lines {
+			fmt.Println(line)
+		}
+	}
+
+	if found == 0 {
+		fmt.Println("No active schedules found")
 	}
 
 	return errors.Join(failures...)
