@@ -694,6 +694,21 @@ func (g *gitlab) CreateProject(options ProjectRequest) (int, error) {
 		g.enableMirrorForProject(project.ID, options.Path)
 	}
 
+	// If requested, schedule the pipeline on the least used slot
+	if options.Schedule {
+		load, err := g.loadSchedules()
+		if err != nil {
+			return 0, err
+		}
+
+		description, err := g.createSchedule(project.ID, project.PathWithNamespace, options.DefaultBranch, load)
+		if err != nil {
+			return 0, fmt.Errorf("cannot create the schedule: %w", err)
+		}
+
+		fmt.Printf("Schedule created: %s\n", description)
+	}
+
 	return project.ID, nil
 }
 

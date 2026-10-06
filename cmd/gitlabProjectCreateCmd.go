@@ -37,6 +37,11 @@ var gitlabProjectCreateCmd = &cobra.Command{
 
   ---
 
+  Create a project with name "Nightly" with the default weekly pipeline schedule
+  opsi gitlab project create Nightly -c
+
+  ---
+
   Create a project with name "Anonymous" disabling shared runners
   opsi gitlab project create Anonymous -r
 
@@ -58,6 +63,7 @@ var gitlabProjectCreateCmd = &cobra.Command{
 		mirror, _ := cmd.Flags().GetBool("mirror")
 		sharedRunners, _ := cmd.Flags().GetBool("sharedrunners")
 		visibility, _ := cmd.Flags().GetString("visibility")
+		schedule, _ := cmd.Flags().GetBool("schedule")
 
 		// Slugify the name if the pathname flag
 		// for the project is not provided
@@ -73,6 +79,7 @@ var gitlabProjectCreateCmd = &cobra.Command{
 			DefaultBranch: defaultBranch,
 			Mirror:        mirror,
 			SharedRunners: sharedRunners,
+			Schedule:      schedule,
 			Group:         group,
 		}
 
@@ -95,6 +102,7 @@ func init() {
 	gitlabProjectCreateCmd.Flags().StringP("branch-default", "b", "main", "the default main branch. Possible values are master or main")
 	gitlabProjectCreateCmd.Flags().BoolP("mirror", "m", false, "Enable or disable the mirroring repo. Default is false")
 	gitlabProjectCreateCmd.Flags().BoolP("sharedrunners", "r", false, "Enable or disable the shared runners. Default is true")
+	gitlabProjectCreateCmd.Flags().BoolP("schedule", "c", false, "Create the default weekly pipeline schedule, on the least used slot. Default is false")
 	gitlabProjectCreateCmd.Flags().StringP("visibility", "i", "", "Set the visibility of the project. Allowed values are private, public, internal")
 
 	// Mark group as required

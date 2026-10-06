@@ -217,6 +217,7 @@ type ProjectRequest struct {
 	DefaultBranch string
 	Mirror        bool
 	SharedRunners bool
+	Schedule      bool
 	Group         int
 }
 
