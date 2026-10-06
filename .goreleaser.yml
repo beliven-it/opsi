@@ -18,6 +18,8 @@ brews:
       Type `opsi help` for further information."
     description: "All-in-one CLI for Beliven Ops daily usage!"
     license: "MIT"
+    # A pre-release (2.0.0-rc.1) never touches the tap
+    skip_upload: auto
   -
     name: opsi
     repository:
@@ -30,3 +32,5 @@ brews:
       Type `opsi help` for further information."
     description: "All-in-one CLI for Beliven Ops daily usage!"
     license: "MIT"
+    # A pre-release (2.0.0-rc.1) never touches the tap
+    skip_upload: auto
