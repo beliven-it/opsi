@@ -29,8 +29,8 @@ type Gitlab interface {
 	UpdateMirroring() error
 	ListGroupAccessTokens(int) error
 	CreateMirror([]string) error
-	CreateSchedule([]string) error
-	UpdateSchedule([]string, bool) error
+	CreateSchedule([]int) error
+	UpdateSchedule([]int, bool) error
 	UpdateCleanUpPolicy(string) error
 }
 

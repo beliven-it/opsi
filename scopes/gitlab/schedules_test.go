@@ -124,11 +124,11 @@ type scheduleServer struct {
 func (s *scheduleServer) handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/projects/corporate/with-schedule" || r.URL.EscapedPath() == "/projects/corporate%2Fwith-schedule":
+		case r.URL.Path == "/projects/2":
 			fmt.Fprint(w, `{"id":2,"path_with_namespace":"corporate/with-schedule","default_branch":"main"}`)
-		case r.URL.EscapedPath() == "/projects/corporate%2Fstaging-only":
+		case r.URL.Path == "/projects/3":
 			fmt.Fprint(w, `{"id":3,"path_with_namespace":"corporate/staging-only","default_branch":"staging"}`)
-		case r.URL.EscapedPath() == "/projects/corporate%2Fnew":
+		case r.URL.Path == "/projects/1":
 			fmt.Fprint(w, `{"id":1,"path_with_namespace":"corporate/new","default_branch":"main"}`)
 		case r.URL.Path == "/projects" && r.Method == "GET":
 			fmt.Fprint(w, `[{"id":1},{"id":2},{"id":3}]`)
@@ -150,7 +150,7 @@ func (s *scheduleServer) handler() http.Handler {
 			s.mu.Unlock()
 			w.WriteHeader(http.StatusCreated)
 			fmt.Fprint(w, `{"id":1}`)
-		case strings.HasPrefix(r.URL.EscapedPath(), "/projects/missing"):
+		case r.URL.Path == "/projects/404":
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, `{"message":"404 Project Not Found"}`)
 		default:
@@ -166,8 +166,8 @@ func TestCreateSchedule(t *testing.T) {
 
 	g := &gitlab{apiURL: server.URL, token: "t"}
 
-	err := g.CreateSchedule([]string{"corporate/new", "corporate/with-schedule", "corporate/staging-only", "missing/project"})
-	if err == nil || !strings.Contains(err.Error(), "missing/project") || strings.Contains(err.Error(), "corporate/new") {
+	err := g.CreateSchedule([]int{1, 2, 3, 404})
+	if err == nil || !strings.Contains(err.Error(), "project #404") || strings.Contains(err.Error(), "corporate/new") {
 		t.Errorf("only the missing project should fail, got %v", err)
 	}
 
@@ -210,9 +210,9 @@ func TestUpdateSchedule(t *testing.T) {
 		switch {
 		case r.URL.Path == "/user":
 			fmt.Fprint(w, `{"id":10,"username":"cicd","state":"active"}`)
-		case r.URL.EscapedPath() == "/projects/corporate%2Fapp":
+		case r.URL.Path == "/projects/1":
 			fmt.Fprint(w, `{"id":1,"path_with_namespace":"corporate/app","default_branch":"main"}`)
-		case r.URL.EscapedPath() == "/projects/corporate%2Fempty":
+		case r.URL.Path == "/projects/2":
 			fmt.Fprint(w, `{"id":2,"path_with_namespace":"corporate/empty","default_branch":"main"}`)
 		case r.URL.Path == "/projects/1/pipeline_schedules":
 			fmt.Fprint(w, `[
@@ -244,7 +244,7 @@ func TestUpdateSchedule(t *testing.T) {
 	g := &gitlab{apiURL: server.URL, token: "t"}
 
 	// A dry run must not change anything
-	if err := g.UpdateSchedule([]string{"corporate/app", "corporate/empty"}, true); err != nil {
+	if err := g.UpdateSchedule([]int{1, 2}, true); err != nil {
 		t.Errorf("dry run failed: %v", err)
 	}
 	if len(taken) != 0 {
@@ -254,7 +254,7 @@ func TestUpdateSchedule(t *testing.T) {
 	// Only the active schedules that lost their owner are taken (blocked or
 	// deactivated owner); the ones of an active user, mine included, are left alone.
 	// A failure is reported without stopping the rest
-	err := g.UpdateSchedule([]string{"corporate/app", "corporate/empty"}, false)
+	err := g.UpdateSchedule([]int{1, 2}, false)
 	if err == nil || !strings.Contains(err.Error(), "corporate/app") {
 		t.Errorf("expected the failure on schedule 6, got %v", err)
 	}

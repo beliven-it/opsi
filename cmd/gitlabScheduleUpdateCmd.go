@@ -9,11 +9,11 @@ import (
 )
 
 var gitlabScheduleUpdateCmd = &cobra.Command{
-	Use:   "update [project]...",
+	Use:   "update [project_id]...",
 	Args:  cobra.ArbitraryArgs,
 	Short: "Fix the pipeline schedules of Gitlab projects that lost their owner",
 	Long: `Fix the active pipeline schedules of Gitlab projects that lost their owner.
-Each project can be given as numeric ID or as full path. Without any project,
+Each project is given by its numeric ID. Without any project,
 all the projects are checked.
 
 A schedule runs as its owner, so it stops when the owner is blocked, deactivated
@@ -27,8 +27,8 @@ Use --dry-run to only see the schedules, with their owner.`,
 
   ---
 
-  Fix the schedules of more projects, by path or ID
-  opsi gitlab schedule update corporate/wiki/beliven-wiki 1234
+  Fix the schedules of more projects
+  opsi gitlab schedule update 239 1234
 
   ---
 
@@ -36,6 +36,12 @@ Use --dry-run to only see the schedules, with their owner.`,
   opsi gitlab schedule update
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		ids, err := projectIDs(args)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
 		// Confirm the action (a dry run changes nothing)
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		force, _ := cmd.Flags().GetBool("force")
@@ -43,7 +49,7 @@ Use --dry-run to only see the schedules, with their owner.`,
 			helpers.Confirm()
 		}
 
-		if err := gitlab.UpdateSchedule(args, dryRun); err != nil {
+		if err := gitlab.UpdateSchedule(ids, dryRun); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}

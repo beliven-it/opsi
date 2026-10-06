@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -303,10 +302,10 @@ type scheduleProject struct {
 	DefaultBranch     string `json:"default_branch"`
 }
 
-func (g *gitlab) findProject(ref string) (scheduleProject, error) {
+func (g *gitlab) findProject(id int) (scheduleProject, error) {
 	var project scheduleProject
 
-	response, err := g.request("GET", "/projects/"+url.PathEscape(ref), nil, nil)
+	response, err := g.request("GET", fmt.Sprintf("/projects/%d", id), nil, nil)
 	if err != nil {
 		return project, err
 	}
@@ -317,17 +316,16 @@ func (g *gitlab) findProject(ref string) (scheduleProject, error) {
 }
 
 // CreateSchedule creates the default pipeline schedule on each of the
-// projects (numeric ID or full path). A project that already has an active
-// schedule is left alone.
-func (g *gitlab) CreateSchedule(projects []string) error {
+// projects (by ID). A project that already has an active schedule is left alone.
+func (g *gitlab) CreateSchedule(projects []int) error {
 	var failures []error
 	var load scheduleLoad
 
-	for _, ref := range projects {
-		project, err := g.findProject(ref)
+	for _, id := range projects {
+		project, err := g.findProject(id)
 		if err != nil {
-			fmt.Printf("Error when reading %s: %v\n", ref, err)
-			failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+			fmt.Printf("Error when reading project #%d: %v\n", id, err)
+			failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 			continue
 		}
 
@@ -458,9 +456,9 @@ func (g *gitlab) updateProjectSchedules(project scheduleProject, me gitlabSchedu
 // anymore, is blocked or is deactivated. A schedule runs as its owner, so it
 // would not run anymore. The schedules of an active user are left alone, as
 // the cron, the branch and the description. It never creates or activates a
-// schedule. The projects are given by numeric ID or full path; with none, all
+// schedule. The projects are given by ID; with none, all
 // the projects are checked. With dryRun it only shows the schedules.
-func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
+func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 	response, err := g.request("GET", "/user", nil, nil)
 	if err != nil {
 		return err
@@ -483,11 +481,11 @@ func (g *gitlab) UpdateSchedule(projects []string, dryRun bool) error {
 			targets = append(targets, scheduleProject{ID: project.ID, PathWithNamespace: project.PathWithNamespace})
 		}
 	} else {
-		for _, ref := range projects {
-			project, err := g.findProject(ref)
+		for _, id := range projects {
+			project, err := g.findProject(id)
 			if err != nil {
-				fmt.Printf("Error when reading %s: %v\n", ref, err)
-				failures = append(failures, fmt.Errorf("%s: %w", ref, err))
+				fmt.Printf("Error when reading project #%d: %v\n", id, err)
+				failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 				continue
 			}
 			targets = append(targets, project)
