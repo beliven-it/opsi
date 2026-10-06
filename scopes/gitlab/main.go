@@ -1376,6 +1376,147 @@ func (g *gitlab) Deprovisioning(username string, dryRun bool) error {
 	return errors.Join(failures...)
 }
 
+// listGroupAccessTokens returns the access tokens of a group, revoked ones excluded.
+func (g *gitlab) listGroupAccessTokens(groupID int) ([]gitlabAccessToken, error) {
+	tokens := []gitlabAccessToken{}
+
+	for page := 1; ; page++ {
+		response, err := g.request("GET", fmt.Sprintf("/groups/%d/access_tokens", groupID), nil, map[string]string{
+			"page":     strconv.Itoa(page),
+			"per_page": "100",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var list []gitlabAccessToken
+		if err := json.Unmarshal(response, &list); err != nil {
+			return nil, err
+		}
+
+		for _, token := range list {
+			if !token.Revoked {
+				tokens = append(tokens, token)
+			}
+		}
+
+		if len(list) < 100 {
+			return tokens, nil
+		}
+	}
+}
+
+// tokenExpiration describes when a token expires and tells if it matches the
+// "expiring within N days" filter (expired tokens always match).
+func tokenExpiration(token gitlabAccessToken, now time.Time, expiringDays int) (string, bool) {
+	if token.ExpiresAt == "" {
+		return "never expires", expiringDays < 0
+	}
+
+	expiresAt, err := time.Parse("2006-01-02", token.ExpiresAt)
+	if err != nil {
+		return "expires " + token.ExpiresAt, expiringDays < 0
+	}
+
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	days := int(expiresAt.Sub(today).Hours() / 24)
+
+	switch {
+	case days < 0:
+		return fmt.Sprintf("EXPIRED on %s (%d days ago)", token.ExpiresAt, -days), true
+	case days == 0:
+		return fmt.Sprintf("expires today (%s)", token.ExpiresAt), true
+	default:
+		return fmt.Sprintf("expires %s (in %d days)", token.ExpiresAt, days), expiringDays < 0 || days <= expiringDays
+	}
+}
+
+// ListGroupAccessTokens prints the access tokens of every group. With
+// expiringDays >= 0 only the expired ones and the ones expiring within that
+// number of days are shown.
+func (g *gitlab) ListGroupAccessTokens(expiringDays int) error {
+	groups, err := g.listGroups()
+	if err != nil {
+		return err
+	}
+
+	type result struct {
+		tokens  []gitlabAccessToken
+		skipped error
+	}
+	results := make([]result, len(groups))
+
+	var (
+		mu   sync.Mutex
+		wg   sync.WaitGroup
+		done int
+	)
+	slots := make(chan struct{}, deprovisioningConcurrency)
+
+	for i, group := range groups {
+		id, _ := groupIdentity(group)
+		wg.Add(1)
+		slots <- struct{}{}
+		go func(i, id int) {
+			defer wg.Done()
+			defer func() { <-slots }()
+
+			tokens, err := g.listGroupAccessTokens(id)
+
+			mu.Lock()
+			defer mu.Unlock()
+			results[i] = result{tokens: tokens, skipped: err}
+			done++
+			progress("Checking group access tokens... %d/%d", done, len(groups))
+		}(i, id)
+	}
+
+	wg.Wait()
+	endProgress()
+
+	now := time.Now()
+	tokensShown, groupsShown := 0, 0
+	skipped := []string{}
+
+	for i, group := range groups {
+		_, fullPath := groupIdentity(group)
+		webURL, _ := group["web_url"].(string)
+
+		if results[i].skipped != nil {
+			skipped = append(skipped, fmt.Sprintf("%s: %s", fullPath, strings.TrimSpace(results[i].skipped.Error())))
+			continue
+		}
+
+		lines := []string{}
+		for _, token := range results[i].tokens {
+			expiration, show := tokenExpiration(token, now, expiringDays)
+			if !show {
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("  - %s [%s] %s", token.Name, strings.Join(token.Scopes, ", "), expiration))
+		}
+
+		if len(lines) == 0 {
+			continue
+		}
+
+		groupsShown++
+		tokensShown += len(lines)
+		fmt.Printf("\n%s (%s)\n%s\n", fullPath, webURL, strings.Join(lines, "\n"))
+	}
+
+	fmt.Printf("\nFound %d tokens in %d groups (%d groups checked)\n", tokensShown, groupsShown, len(groups))
+
+	if len(skipped) > 0 {
+		fmt.Printf("\nSkipped %d groups (no permission or error):\n", len(skipped))
+		for _, s := range skipped {
+			fmt.Println(" ", s)
+		}
+	}
+
+	return nil
+}
+
 func NewGitlab(apiURL string, token string, mirror GitlabMirrorOptions, exclusions GitlabExclusionsConfig) Gitlab {
 	return &gitlab{
 		apiURL:     apiURL,
