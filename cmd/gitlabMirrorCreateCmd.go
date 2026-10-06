@@ -14,7 +14,7 @@ var gitlabMirrorCreateCmd = &cobra.Command{
 	Long: `Enable the mirroring for one or more existing Gitlab projects.
 Each project can be given as numeric ID or as full path.
 The destination project is created on the mirror instance when missing.
-Projects that already have a mirror are refused: use "update mirroring" for those.`,
+Projects that already have a mirror are refused: use "mirror update" for those.`,
 	Example: `
   Enable the mirroring for a project
   opsi gitlab mirror create corporate/wiki/beliven-wiki

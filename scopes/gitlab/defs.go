@@ -29,6 +29,8 @@ type Gitlab interface {
 	UpdateMirroring() error
 	ListGroupAccessTokens(int) error
 	CreateMirror([]string) error
+	CreateSchedule([]int) error
+	UpdateSchedule([]int, bool) error
 	UpdateCleanUpPolicy(string) error
 }
 
@@ -216,6 +218,7 @@ type ProjectRequest struct {
 	DefaultBranch string
 	Mirror        bool
 	SharedRunners bool
+	Schedule      bool
 	Group         int
 }
 
