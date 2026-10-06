@@ -91,6 +91,12 @@ func Section(format string, args ...any) {
 	fmt.Fprintf(out, "\n%s\n", paint(outTerminal, bold, fmt.Sprintf(format, args...)))
 }
 
+// Blank writes an empty line
+func Blank() {
+	EndProgress()
+	fmt.Fprintln(out)
+}
+
 // Muted writes a secondary detail, like a path or an identifier
 func Muted(format string, args ...any) {
 	line(out, outTerminal, gray, "", "%s", paint(outTerminal, gray, fmt.Sprintf(format, args...)))

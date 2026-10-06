@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"opsi/helpers/ui"
 	"strconv"
 	"strings"
 	"sync"
@@ -253,12 +254,12 @@ func (g *gitlab) loadSchedules() (scheduleLoad, error) {
 				}
 			}
 			done++
-			progress("Checking existing schedules... %d/%d", done, len(projects))
+			ui.Progress("Checking existing schedules... %d/%d", done, len(projects))
 		}(project.ID)
 	}
 
 	wg.Wait()
-	endProgress()
+	ui.EndProgress()
 
 	return load, nil
 }
@@ -324,14 +325,14 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 	for _, id := range projects {
 		project, err := g.findProject(id)
 		if err != nil {
-			fmt.Printf("Error when reading project #%d: %v\n", id, err)
+			ui.Error("Error when reading project #%d: %v", id, err)
 			failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 			continue
 		}
 
 		existing, err := g.listSchedules(project.ID)
 		if err != nil {
-			fmt.Printf("Error when reading the schedules of %s: %v\n", project.PathWithNamespace, err)
+			ui.Error("Error when reading the schedules of %s: %v", project.PathWithNamespace, err)
 			failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
 			continue
 		}
@@ -344,7 +345,7 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 			}
 		}
 		if active != nil {
-			fmt.Printf("Skipped %s: it already has an active schedule (%s, on %s)\n", project.PathWithNamespace, active.Cron, active.Ref)
+			ui.Info("Skipped %s: it already has an active schedule (%s, on %s)", project.PathWithNamespace, active.Cron, active.Ref)
 			continue
 		}
 
@@ -358,12 +359,12 @@ func (g *gitlab) CreateSchedule(projects []int) error {
 
 		description, err := g.createSchedule(project.ID, project.PathWithNamespace, project.DefaultBranch, load)
 		if err != nil {
-			fmt.Printf("Error when creating the schedule for %s: %v\n", project.PathWithNamespace, err)
+			ui.Error("Error when creating the schedule for %s: %v", project.PathWithNamespace, err)
 			failures = append(failures, fmt.Errorf("%s: %w", project.PathWithNamespace, err))
 			continue
 		}
 
-		fmt.Printf("Schedule created for %s: %s\n", project.PathWithNamespace, description)
+		ui.Success("Schedule created for %s: %s", project.PathWithNamespace, description)
 	}
 
 	return errors.Join(failures...)
@@ -484,7 +485,7 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 		for _, id := range projects {
 			project, err := g.findProject(id)
 			if err != nil {
-				fmt.Printf("Error when reading project #%d: %v\n", id, err)
+				ui.Error("Error when reading project #%d: %v", id, err)
 				failures = append(failures, fmt.Errorf("project #%d: %w", id, err))
 				continue
 			}
@@ -514,23 +515,23 @@ func (g *gitlab) UpdateSchedule(projects []int, dryRun bool) error {
 			results[i] = lines
 			failures = append(failures, errs...)
 			done++
-			progress("Checking schedules... %d/%d", done, len(targets))
+			ui.Progress("Checking schedules... %d/%d", done, len(targets))
 		}(i, project)
 	}
 
 	wg.Wait()
-	endProgress()
+	ui.EndProgress()
 
 	found := 0
 	for _, lines := range results {
 		found += len(lines)
 		for _, line := range lines {
-			fmt.Println(line)
+			ui.Print("%s", line)
 		}
 	}
 
 	if found == 0 {
-		fmt.Println("No active schedules found")
+		ui.Info("No active schedules found")
 	}
 
 	return errors.Join(failures...)
