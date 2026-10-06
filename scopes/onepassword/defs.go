@@ -6,7 +6,7 @@ type onePassword struct {
 }
 
 type OnePassword interface {
-	Deprovisioning(string) error
+	Deprovisioning(string, bool) error
 	Create(string) error
 }
 
