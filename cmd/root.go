@@ -53,6 +53,16 @@ func Execute() {
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
 
+	// Read before cobra runs: the help is printed before the flags are applied
+	for _, arg := range os.Args[1:] {
+		if arg == "--" {
+			break
+		}
+		if arg == "--no-color" {
+			ui.DisableColors()
+		}
+	}
+
 	command, err := rootCmd.ExecuteC()
 	if err != nil {
 		ui.Error("%s", err.Error())
@@ -124,6 +134,10 @@ func initConfig() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+
+	// Colors are already off when the output is not a terminal or NO_COLOR is
+	// set: the flag is for the terminals where they are not wanted
+	rootCmd.PersistentFlags().Bool("no-color", false, "Disable the colors of the output")
 
 	// Headings of the help in bold, only on a terminal
 	cobra.AddTemplateFunc("bold", ui.Bold)

@@ -106,3 +106,24 @@ func TestTableStyledCells(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestDisableColorsOnTerminal(t *testing.T) {
+	o, e := capture(t, true)
+	t.Cleanup(func() { noColor = false })
+
+	Success("ok")
+	Error("broken")
+	if !strings.Contains(o.String(), "\033[") || !strings.Contains(e.String(), "\033[") {
+		t.Fatalf("expected colors on a terminal: %q %q", o.String(), e.String())
+	}
+	o.Reset()
+	e.Reset()
+
+	DisableColors()
+	Success("ok")
+	Error("broken")
+	Table([][]string{{Cyan("x")}})
+	if strings.Contains(o.String(), "\033[") || strings.Contains(e.String(), "\033[") {
+		t.Errorf("colors after DisableColors: %q %q", o.String(), e.String())
+	}
+}
