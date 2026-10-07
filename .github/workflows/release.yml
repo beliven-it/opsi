@@ -23,9 +23,26 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      # GoReleaser drops `brews` in v3: generate the formulas ourselves and
-      # check they match. Once they always do, `brews` can be replaced by a push.
-      - name: Check generated Homebrew formulas
+      # GoReleaser drops `brews` in v3: the formulas are generated from its
+      # output and pushed to the tap. A pre-release never touches the tap.
+      - name: Checkout the tap
+        if: ${{ !github.event.release.prerelease }}
+        uses: actions/checkout@v7
+        with:
+          repository: beliven-it/homebrew-tap
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          path: tap
+      - name: Publish Homebrew formulas
+        if: ${{ !github.event.release.prerelease }}
         run: |
-          scripts/homebrew-formula.sh dist "$RUNNER_TEMP/formulas"
-          diff -ru dist/homebrew/Formula "$RUNNER_TEMP/formulas"
+          scripts/homebrew-formula.sh dist tap/Formula
+          version="$(jq -r '.version' dist/metadata.json)"
+          cd tap
+          git add Formula
+          if git diff --cached --quiet; then
+            echo "The tap already has the formulas of opsi $version"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Brew formula update for opsi version $version"
+          git push
