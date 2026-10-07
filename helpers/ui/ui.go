@@ -32,6 +32,15 @@ var (
 	errTerminal = isTerminal(os.Stderr)
 )
 
+// noColor turns the colors off whatever the destination is (--no-color)
+var noColor bool
+
+// DisableColors turns the colors off for the rest of the run. The progress
+// lines are not affected: they exist only on a terminal.
+func DisableColors() {
+	noColor = true
+}
+
 func isTerminal(f *os.File) bool {
 	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
 		return false
@@ -41,7 +50,7 @@ func isTerminal(f *os.File) bool {
 }
 
 func paint(enabled bool, color, text string) string {
-	if !enabled {
+	if !enabled || noColor {
 		return text
 	}
 	return color + text + reset
